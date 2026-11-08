@@ -104,15 +104,15 @@ test('L4 can register and delete members without L5 recovery access',async({page
 test('authors edit approved posts and board-specific prefixes then receive reapproval',async({page})=>{
  await choose(page,'일반 학생');await go(page,'/posts/write');
  await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('question');await expect(page.getByRole('combobox',{name:'말머리',exact:true})).toHaveValue('궁금해용');
- await page.getByLabel('제목',{exact:true}).fill('질문 게시글 수정 확인');await page.getByLabel('내용',{exact:true}).fill('학교 도서관을 이용하는 방법을 알고 싶습니다.');
+ await page.getByLabel('제목',{exact:true}).fill('질문 게시글 편집 확인');await page.getByLabel('내용',{exact:true}).fill('학교 도서관을 이용하는 방법을 알고 싶습니다.');
  await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true})).toHaveCount(0);
  const postPath=new URL(page.url()).hash.slice(1);
  await choose(page,'일반 학생');await go(page,postPath);await page.locator('.article-actions').getByRole('button',{name:'하트 누르기'}).click();await expect(page.locator('.article-actions').getByRole('button',{name:'하트 취소'})).toContainText('1');
  await page.getByRole('link',{name:'글·말머리 수정'}).click();await page.getByRole('combobox',{name:'말머리',exact:true}).selectOption('해결됐어용');await page.getByLabel('내용',{exact:true}).fill('선생님과 학교 도서관 이용 방법을 확인했고 해결했습니다.');
  await page.getByRole('button',{name:'수정 내용 저장',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.locator('.article-category')).toContainText('해결됐어용');
- await choose(page,'학급 대표 · 반장');await go(page,'/boards/question');await expect(page.getByRole('link',{name:/질문 게시글 수정 확인/})).toHaveCount(0);
- await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'질문 게시글 수정 확인'}).getByRole('button',{name:'승인 후 공개'}).click();
- await go(page,'/boards/question');await page.getByRole('combobox',{name:'말머리 필터'}).selectOption('value:해결됐어용');await expect(page.getByRole('link',{name:/질문 게시글 수정 확인/})).toBeVisible();
+ await choose(page,'학급 대표 · 반장');await go(page,'/boards/question');await expect(page.getByRole('link',{name:/질문 게시글 편집 확인/})).toHaveCount(0);
+ await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'질문 게시글 편집 확인'}).getByRole('button',{name:'승인 후 공개'}).click();
+ await go(page,'/boards/question');await page.getByRole('combobox',{name:'말머리 필터'}).selectOption('value:해결됐어용');await expect(page.getByRole('link',{name:/질문 게시글 편집 확인/})).toBeVisible();
  await go(page,'/posts/write');await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('lost');await expect(page.getByRole('combobox',{name:'말머리',exact:true}).locator('option')).toHaveText(['찾아가용','찾아용','찾았어용']);
 });
 
@@ -135,9 +135,46 @@ test('clean posts publish immediately and flagged edits return to review',async(
 });
 
 test('political names in posts and comments wait for moderation',async({page})=>{
- await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('김현지 관련 질문입니다');await page.getByLabel('내용',{exact:true}).fill('문서에서 읽은 이름에 관해 질문하는 게시글입니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.getByText('정치·이념·정치인 관련 표현 · 운영진 확인 필요',{exact:true})).toBeVisible();
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('김현지 관련 질문입니다');await page.getByLabel('내용',{exact:true}).fill('문서에서 읽은 이름에 관해 질문하는 게시글입니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.getByText(/정치·이념·정치인 관련 표현 · 운영진 확인 필요/)).toBeVisible();
  await choose(page,'학급 대표 · 반장');await go(page,'/boards');await expect(page.getByRole('link',{name:/김현지 관련 질문입니다/})).toHaveCount(0);
  await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('트럼프 관련 내용을 이야기합니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();
  await choose(page,'일반 학생');await go(page,'/posts/post-4');await expect(page.getByText('트럼프 관련 내용을 이야기합니다.',{exact:true})).toHaveCount(0);
  await choose(page,'학생회 임원');await go(page,'/admin/posts');await expect(page.locator('.post-review').filter({hasText:'김현지 관련 질문입니다'})).toBeVisible();await expect(page.locator('.comment-review').filter({hasText:'트럼프 관련 내용을 이야기합니다.'})).toBeVisible();
+});
+
+test('authors delete their posts with confirmation',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('본인 삭제 기능 확인');await page.getByLabel('내용',{exact:true}).fill('직접 작성하고 삭제하는 학교생활 게시글입니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();
+ await page.getByRole('button',{name:'게시글 삭제',exact:true}).click();let dialog=page.getByRole('dialog',{name:'게시글 삭제 확인'});await expect(dialog.getByRole('button',{name:'삭제 확정'})).toBeDisabled();await dialog.getByRole('button',{name:'취소',exact:true}).click();await expect(page.getByRole('heading',{name:'본인 삭제 기능 확인'})).toBeVisible();
+ await page.getByRole('button',{name:'게시글 삭제',exact:true}).click();dialog=page.getByRole('dialog',{name:'게시글 삭제 확인'});await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(page).toHaveURL(/boards/);await expect(page.getByRole('link',{name:/본인 삭제 기능 확인/})).toHaveCount(0);
+});
+test('author comment deletion preserves another member reply',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('부모 댓글 삭제 검증 내용입니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();
+ await choose(page,'학급 대표 · 반장');await go(page,'/posts/post-4');const parent=page.locator('.comment').filter({hasText:'부모 댓글 삭제 검증 내용입니다.'});await expect(parent.getByRole('button',{name:'댓글 삭제',exact:true})).toHaveCount(0);await parent.getByRole('button',{name:'답글',exact:true}).click();await page.getByLabel('답글 내용',{exact:true}).fill('다른 회원이 남긴 답글을 유지합니다.');await page.getByRole('button',{name:'답글 등록',exact:true}).click();
+ await choose(page,'일반 학생');await go(page,'/posts/post-4');await page.locator('.comment').filter({hasText:'부모 댓글 삭제 검증 내용입니다.'}).getByRole('button',{name:'댓글 삭제',exact:true}).click();const dialog=page.getByRole('dialog',{name:'댓글 삭제 확인'});await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(page.getByText('부모 댓글 삭제 검증 내용입니다.',{exact:true})).toHaveCount(0);await expect(page.locator('.comment').filter({hasText:'다른 회원이 남긴 답글을 유지합니다.'})).toBeVisible();
+});
+test('L4 force deletes comments and posts with reasons',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('운영진 강제 삭제 검증 댓글입니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();
+ await choose(page,'학생회 임원');await go(page,'/posts/post-4');await expect(page.getByRole('button',{name:'게시글 강제 삭제',exact:true})).toHaveCount(0);await expect(page.getByRole('button',{name:'댓글 강제 삭제',exact:true})).toHaveCount(0);
+ await choose(page,'학생회 회장단');await go(page,'/posts/post-4');await page.locator('.comment').filter({hasText:'운영진 강제 삭제 검증 댓글입니다.'}).getByRole('button',{name:'댓글 강제 삭제',exact:true}).click();let dialog=page.getByRole('dialog',{name:'댓글 강제 삭제 확인'});await dialog.getByRole('checkbox').check();await expect(dialog.getByRole('button',{name:'삭제 확정'})).toBeDisabled();await dialog.getByLabel('강제 삭제 사유').fill('운영 기준 위반으로 삭제합니다.');await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(page.getByText('운영진 강제 삭제 검증 댓글입니다.',{exact:true})).toHaveCount(0);
+ await page.locator('.article-actions').getByRole('button',{name:'게시글 강제 삭제',exact:true}).click();dialog=page.getByRole('dialog',{name:'게시글 강제 삭제 확인'});await dialog.getByLabel('강제 삭제 사유').fill('운영 기준 위반 게시글 삭제');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(page).toHaveURL(/boards/);await go(page,'/posts/post-4');await expect(page.getByRole('heading',{name:'게시글을 찾을 수 없어요'})).toBeVisible();
+});
+test('all levels queue abusive posts, slang comments and full-name references',async({page})=>{
+ for(const [index,role] of ['일반 학생','학급 대표 · 반장','학생회 임원','학생회 회장단','담당 교사'].entries()){
+  await choose(page,role);await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('등급 공통 검사 '+index);await page.getByLabel('내용',{exact:true}).fill('이1새1끼 라는 표현을 사용한 검사 게시글입니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('아직 공개되지 않은 글입니다.',{exact:true})).toBeVisible();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();
+  await go(page,'/posts/post-4');const content='검사 '+index+' 여시 펨코 일베 디시 우흥 북 딱 예아';await page.getByLabel('댓글 내용',{exact:true}).fill(content);await page.getByRole('button',{name:'댓글 등록',exact:true}).click();await expect(page.locator('.comment').filter({hasText:content}).getByText('승인 대기',{exact:true})).toBeVisible();
+ }
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('이름 포함 검사 확인');await page.getByLabel('내용',{exact:true}).fill('이1서1연과 학교 도서관에 갔습니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText(/회원 이름 포함/)).toBeVisible();
+});
+
+test('members report comments and L4 deletes reported content',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('댓글 신고 흐름을 검증하는 내용입니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();const own=page.locator('.comment').filter({hasText:'댓글 신고 흐름을 검증하는 내용입니다.'});await expect(own.getByRole('button',{name:'댓글 신고',exact:true})).toHaveCount(0);
+ await choose(page,'학급 대표 · 반장');await go(page,'/posts/post-4');await page.locator('.comment').filter({hasText:'댓글 신고 흐름을 검증하는 내용입니다.'}).getByRole('button',{name:'댓글 신고',exact:true}).click();let dialog=page.getByRole('dialog',{name:'댓글 신고',exact:true});await expect(dialog.getByRole('button',{name:'댓글 신고 접수'})).toBeDisabled();await dialog.getByLabel('댓글 신고 사유').fill('운영 기준에 맞지 않는 댓글입니다.');await dialog.getByRole('button',{name:'댓글 신고 접수'}).click();await expect(dialog).toHaveCount(0);
+ await choose(page,'학생회 회장단');await go(page,'/admin/posts');const reported=page.locator('.comment-report').filter({hasText:'댓글 신고 흐름을 검증하는 내용입니다.'});await expect(reported).toContainText('운영 기준에 맞지 않는 댓글입니다.');await reported.getByRole('button',{name:'댓글 강제 삭제',exact:true}).click();dialog=page.getByRole('dialog',{name:'댓글 강제 삭제 확인'});await dialog.getByLabel('강제 삭제 사유').fill('신고 내용 확인 후 댓글 삭제');await dialog.getByRole('checkbox').check();await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(reported).toHaveCount(0);await go(page,'/posts/post-4');await expect(page.getByText('댓글 신고 흐름을 검증하는 내용입니다.',{exact:true})).toHaveCount(0);
+});
+test('given names without surnames also wait for review',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('단독 이름 검사 확인');await page.getByLabel('내용',{exact:true}).fill('서1연과 함께 학교 도서관에 갔습니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('아직 공개되지 않은 글입니다.',{exact:true})).toBeVisible();await expect(page.getByText(/회원 이름 포함/)).toBeVisible();
+});
+
+test('music recommendation board supports its own prefixes',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/boards/music');await expect(page.getByRole('heading',{name:'오노추',exact:true})).toBeVisible();await page.getByRole('link',{name:'글쓰기',exact:true}).last().click();await expect(page.getByRole('combobox',{name:'게시판',exact:true})).toHaveValue('music');await expect(page.getByRole('combobox',{name:'말머리',exact:true})).toHaveValue('오노추');await page.getByLabel('제목',{exact:true}).fill('오늘 듣기 좋은 연주곡');await page.getByLabel('내용',{exact:true}).fill('잔잔한 피아노 연주곡을 추천해요. 책을 읽으며 듣기 좋아요.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByRole('heading',{name:'오늘 듣기 좋은 연주곡'})).toBeVisible();await expect(page.getByText('승인 대기',{exact:true})).toHaveCount(0);await go(page,'/boards/music');await expect(page.getByRole('link',{name:/오늘 듣기 좋은 연주곡/})).toBeVisible();
 });

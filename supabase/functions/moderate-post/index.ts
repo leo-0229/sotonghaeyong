@@ -35,7 +35,8 @@ Deno.serve(async(req:Request)=>{
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
   const {error:rate}=await admin.rpc('reserve_post_check',{p_user:user.id});if(rate)return reply({error:'요청이 많습니다. 잠시 후 다시 시도하세요.'},429);
   const draft=kind==='post'&&input.draft===true;
-  const review=draft?{status:'DRAFT',reasons:[],rulesVerified:false}:reviewContent([prefix,title].filter(Boolean).join(' '),content);
+  const names=draft?{data:[],error:null}:await admin.rpc('moderation_member_names');
+  const review=draft?{status:'DRAFT',reasons:[],rulesVerified:false}:names.error?{status:'PENDING',reasons:['회원 이름 확인 실패 · 운영진 확인 필요'],rulesVerified:false}:reviewContent([prefix,title].filter(Boolean).join(' '),content,names.data??[]);
   let result;
   if(kind==='post')result=await admin.rpc('store_moderated_post',{p_user:user.id,p_board:board,p_title:title.trim(),p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_id:input.editId??null,p_prefix:prefix,p_rules_verified:review.rulesVerified});
   else if(kind==='comment')result=await admin.rpc('store_moderated_comment',{p_user:user.id,p_post:input.postId,p_content:content.trim(),p_parent:input.parentId??null,p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});

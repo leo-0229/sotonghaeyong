@@ -55,3 +55,62 @@ describe('public class submission metadata',()=>{
  it('shows who submitted without exposing private answers',async()=>{await actor(ids.president);await db.query('select public.submit_class_task($1,$2,0,false)',[ids.task,JSON.stringify({name:'우리 반 부스',count:'12'})]);await actor(ids.student);const directory=(await db.query<{data:Record<string,unknown>[]}>('select public.class_submission_directory($1) as data',[ids.task])).rows[0].data;expect(directory[0].submittedBy).toBe('체험president');expect(JSON.stringify(directory)).not.toContain('answers');expect((await db.query('select * from public.class_task_submissions')).rows).toHaveLength(0);});
  it('requires personal contact for edits after the deadline even if late initial submissions are allowed',async()=>{await actor(ids.president);const answers=JSON.stringify({name:'우리 반 부스',count:'12'});await db.query('select public.submit_class_task($1,$2,0,false)',[ids.task,answers]);await db.exec('reset role');await db.query("update public.class_tasks set deadline=now()-interval '1 minute',allow_late=true where id=$1",[ids.task]);await actor(ids.president);await expect(db.query('select public.submit_class_task($1,$2,1,false)',[ids.task,answers])).rejects.toThrow('DEADLINE_PASSED_CONTACT_COUNCIL');});
 });
+
+describe('author and L4/L5 content deletion',()=>{
+ it('lets authors delete posts and purges comments, revisions and hearts',async()=>{
+  const id=await savePost(ids.student,'APPROVED',null,'이야기해용',true);
+  await savePost(ids.student,'APPROVED',id,'이야기해용',true);
+  await service();await db.query("select public.store_moderated_comment($1,$2,'다른 회원의 댓글입니다.',null,'APPROVED','{}',true)",[ids.president,id]);
+  await actor(ids.president);await db.query("select public.toggle_heart('post',$1)",[id]);
+  await actor(ids.student);await db.query("select public.delete_community_content('post',$1)",[id]);
+  await db.exec('reset role');
+  for(const table of ['posts','comments','post_revisions'])expect((await db.query('select 1 from public.'+table+' where '+(table==='posts'?'id':'post_id')+'=$1',[id])).rows).toHaveLength(0);
+  expect((await db.query('select 1 from app_private.content_hearts where post_id=$1',[id])).rows).toHaveLength(0);
+  const audit=(await db.query<{action:string;details:unknown}>('select action,details from public.audit_logs where resource_id=$1 order by created_at desc',[id])).rows.find(r=>r.action==='post.author_deleted');
+  expect(audit).toBeDefined();expect(JSON.stringify(audit)).not.toContain('충분히 긴 수정 게시글 본문');
+ });
+ it('denies ordinary members deleting another author post',async()=>{await actor(ids.president);await expect(db.query("select public.delete_community_content('post',$1)",[ids.post])).rejects.toThrow('CONTENT_DELETE_PERMISSION_DENIED');});
+ it('denies L3 force deletion even when a reason is supplied',async()=>{await actor(ids.officer);await expect(db.query("select public.delete_community_content('post',$1,'검토 후 강제 삭제 요청')",[ids.post])).rejects.toThrow('CONTENT_DELETE_PERMISSION_DENIED');});
+ it('requires a reason from L4 force deletion',async()=>{await actor(ids.executive);await expect(db.query("select public.delete_community_content('post',$1)",[ids.post])).rejects.toThrow('DELETE_REASON_REQUIRED');});
+ it.each([ids.executive,ids.teacher])('allows L4/L5 force post deletion and audits the actor',async user=>{await actor(user);await db.query("select public.delete_community_content('post',$1,'유해 게시글 운영 기준 위반')",[ids.post]);await db.exec('reset role');expect((await db.query('select 1 from public.posts where id=$1',[ids.post])).rows).toHaveLength(0);expect((await db.query('select actor_id,action from public.audit_logs where resource_id=$1',[ids.post])).rows).toContainEqual({actor_id:user,action:'post.force_deleted'});});
+ it('keeps another author reply when the parent author deletes their comment',async()=>{
+  await db.query("update public.posts set status='APPROVED' where id=$1",[ids.post]);await service();
+  const parent=(await db.query<{id:string}>("select public.store_moderated_comment($1,$2,'삭제할 부모 댓글입니다.',null,'APPROVED','{}',true) as id",[ids.student,ids.post])).rows[0].id;
+  const child=(await db.query<{id:string}>("select public.store_moderated_comment($1,$2,'유지할 다른 회원의 답글입니다.',$3,'APPROVED','{}',true) as id",[ids.president,ids.post,parent])).rows[0].id;
+  await actor(ids.student);await db.query("select public.delete_community_content('comment',$1)",[parent]);await db.exec('reset role');
+  expect((await db.query('select 1 from public.comments where id=$1',[parent])).rows).toHaveLength(0);
+  expect((await db.query('select parent_id,content from public.comments where id=$1',[child])).rows).toEqual([{parent_id:null,content:'유지할 다른 회원의 답글입니다.'}]);
+ });
+ it('allows force comment deletion with a reason',async()=>{await db.query("update public.posts set status='APPROVED' where id=$1",[ids.post]);await service();const id=(await db.query<{id:string}>("select public.store_moderated_comment($1,$2,'삭제 대상 댓글입니다.',null,'APPROVED','{}',true) as id",[ids.student,ids.post])).rows[0].id;await actor(ids.executive);await db.query("select public.delete_community_content('comment',$1,'댓글 운영 기준 위반 확인')",[id]);await db.exec('reset role');expect((await db.query('select 1 from public.comments where id=$1',[id])).rows).toHaveLength(0);});
+ it('rejects anonymous deletion RPC access',async()=>{await db.exec('set local role anon');await expect(db.query("select public.delete_community_content('post',$1)",[ids.post])).rejects.toThrow(/permission denied/);});
+ it('prevents a suspended author from using deletion RPC',async()=>{await db.query("update public.profiles set status='SUSPENDED' where id=$1",[ids.student]);await actor(ids.student);await expect(db.query("select public.delete_community_content('post',$1)",[ids.post])).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+});
+
+describe('comment reporting permissions and moderation',()=>{
+ async function reportable(status='APPROVED'){
+  await db.query("update public.posts set status='APPROVED' where id=$1",[ids.post]);await service();
+  return (await db.query<{id:string}>("select public.store_moderated_comment($1,$2,'신고 대상 가상 댓글입니다.',null,$3,'{}',$4) as id",[ids.student,ids.post,status,status==='APPROVED'])).rows[0].id;
+ }
+ it('accepts one report per member/comment and keeps it private from the author',async()=>{
+  const comment=await reportable();await actor(ids.president);const first=(await db.query<{id:string}>("select public.report_comment($1,'욕설과 비방 내용이 포함됨') as id",[comment])).rows[0].id;
+  expect((await db.query<{id:string}>("select public.report_comment($1,'중복 신고 사유입니다.') as id",[comment])).rows[0].id).toBe(first);
+  expect((await db.query('select id from public.comment_reports')).rows).toHaveLength(1);await actor(ids.student);expect((await db.query('select id from public.comment_reports')).rows).toHaveLength(0);
+ });
+ it('denies self reporting',async()=>{const comment=await reportable();await actor(ids.student);await expect(db.query("select public.report_comment($1,'본인 댓글 신고 요청입니다.')",[comment])).rejects.toThrow('OWN_COMMENT_REPORT_DENIED');});
+ it('denies reporting pending comments by guessed ID',async()=>{const comment=await reportable('PENDING');await actor(ids.president);await expect(db.query("select public.report_comment($1,'비공개 댓글을 추측한 신고')",[comment])).rejects.toThrow('PUBLIC_COMMENT_REQUIRED');});
+ it('denies the moderation queue to regular members',async()=>{await actor(ids.president);await expect(db.query('select public.comment_report_queue()')).rejects.toThrow('REVIEWER_REQUIRED');});
+ it('allows council review and records a notification without exposing report content publicly',async()=>{
+  const comment=await reportable();await actor(ids.president);const id=(await db.query<{id:string}>("select public.report_comment($1,'운영 기준 위반 댓글입니다.') as id",[comment])).rows[0].id;
+  await actor(ids.officer);expect((await db.query<{data:{id:string}[]}>('select public.comment_report_queue() as data')).rows[0].data.some(r=>r.id===id)).toBe(true);await db.query("select public.review_comment_report($1,'REVIEWED')",[id]);expect((await db.query<{data:unknown[]}>('select public.comment_report_queue() as data')).rows[0].data).toHaveLength(0);
+  await db.exec('reset role');expect((await db.query('select status,reviewed_by from public.comment_reports where id=$1',[id])).rows).toEqual([{status:'REVIEWED',reviewed_by:ids.officer}]);
+ });
+ it('cleans up reports when a moderator deletes the comment',async()=>{const comment=await reportable();await actor(ids.president);await db.query("select public.report_comment($1,'삭제가 필요한 댓글입니다.')",[comment]);await actor(ids.executive);await db.query("select public.delete_community_content('comment',$1,'운영 기준 위반 댓글 삭제')",[comment]);await db.exec('reset role');expect((await db.query('select id from public.comment_reports where comment_id=$1',[comment])).rows).toHaveLength(0);});
+ it('does not grant direct report insertion to authenticated clients',async()=>{await actor(ids.president);await expect(db.query("insert into public.comment_reports(comment_id,post_id,reporter_id,reason) values($1,$2,$3,'검사를 우회하는 직접 삽입')",[ids.post,ids.post,ids.president])).rejects.toThrow(/permission denied/);});
+ it('requires a meaningful report reason',async()=>{const comment=await reportable();await actor(ids.president);await expect(db.query("select public.report_comment($1,'짧음')",[comment])).rejects.toThrow('INVALID_REPORT_REASON');});
+});
+
+describe('music board and runtime member-name directory',()=>{
+ it('provides the ordinary music board without inserting demo posts',async()=>{await actor(ids.student);expect((await db.query("select title,official from public.boards where slug='music'")).rows).toEqual([{title:'오노추',official:false}]);});
+ it('does not expose the full moderation name list to authenticated clients',async()=>{await actor(ids.student);await expect(db.query('select public.moderation_member_names()')).rejects.toThrow(/permission denied/);});
+ it('allows the trusted service to inspect current member display names',async()=>{await service();expect((await db.query<{names:string[]}>('select public.moderation_member_names() as names')).rows[0].names).toContain('체험student');});
+});

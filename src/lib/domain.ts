@@ -18,9 +18,10 @@ export const canManage = (member: Member | undefined) => level(member) >= 4;
 export const isTeacher = (member: Member | undefined) => level(member) === 5;
 export type PostStatus = 'DRAFT' | 'PENDING' | 'APPROVED' | 'REJECTED' | 'HIDDEN';
 export interface HeartSummary {count:number;liked:boolean}
+export interface CommentReport {id:string;commentId:string;postId:string;reporterId:string;reason:string;date:string;status:'OPEN'|'REVIEWED'|'DISMISSED'}
 export interface PostComment {id:string;authorId:string;author:string;content:string;date:string;status:'PENDING'|'APPROVED';parentId?:string|null;hearts?:HeartSummary;demoHeartUsers?:string[];moderationReasons?:string[]}
 export interface Post { id: string; board: string; title: string; content: string; prefix?: string; updatedAt?: string; authorId: string; author: string; date: string; views: number; status: PostStatus; pinned?: boolean; reason?: string; moderationReasons?: string[]; hearts?: HeartSummary; demoHeartUsers?:string[]; comments: PostComment[] }
-export const BOARDS = [{ id: 'all', label: '전체 게시글' }, { id: 'notice', label: '전체 공지' }, { id: 'council', label: '학생회 공지' }, { id: 'free', label: '자유게시판' }, { id: 'question', label: '질문게시판' }, { id: 'info', label: '정보공유' }, { id: 'report', label: '학생회 활동 보고' }, {id:'lost',label:'분실물 게시판'}];
+export const BOARDS = [{ id: 'all', label: '전체 게시글' }, { id: 'notice', label: '전체 공지' }, { id: 'council', label: '학생회 공지' }, { id: 'free', label: '자유게시판' }, { id: 'question', label: '질문게시판' }, { id: 'info', label: '정보공유' }, { id: 'report', label: '학생회 활동 보고' }, {id:'lost',label:'분실물 게시판'},{id:'music',label:'오노추'}];
 export const boardLabel = (id: string) => BOARDS.find(b => b.id === id)?.label ?? id;
 export type SubmissionStatus = 'DRAFT' | 'SUBMITTED' | 'REVISION_REQUESTED' | 'RESUBMITTED' | 'ACCEPTED' | 'CLOSED';
 export const STATUS_LABELS: Record<string, string> = { NOT_SUBMITTED: '미제출', DRAFT: '임시 저장', SUBMITTED: '제출 완료', REVISION_REQUESTED: '보완 요청', RESUBMITTED: '재제출', ACCEPTED: '접수 확정', CLOSED: '업무 종료', PENDING: '승인 대기', APPROVED: '승인 완료', REJECTED: '반려', HIDDEN: '숨김', ACTIVE: '활성', SUSPENDED: '이용 정지', WITHDRAWN: '탈퇴' };
@@ -34,7 +35,7 @@ export interface Pledge { id: string; title: string; department: string; progres
 export interface MentoringApplication { id: string; memberId: string; kind: '멘토' | '멘티'; time?: string; goal: string; status: string; partnerId?: string }
 export interface Survey { id: string; title: string; description: string; deadline: string; options: string[]; responses: Record<string, string> }
 export interface Notice { id: string; recipientId: string; title: string; href: string; read: boolean; date: string }
-export interface AppState { members: Member[]; currentMemberId: string | null; posts: Post[]; tasks: ClassTask[]; submissions: Submission[]; events: SchoolEvent[]; suggestions: Suggestion[]; pledges: Pledge[]; surveys: Survey[]; mentoring: MentoringApplication[]; notifications: Notice[]; logs: { id: string; by: string; action: string; date: string }[]; reports: { id: string; postId: string; by: string; reason: string }[] }
+export interface AppState { members: Member[]; currentMemberId: string | null; posts: Post[]; tasks: ClassTask[]; submissions: Submission[]; events: SchoolEvent[]; suggestions: Suggestion[]; pledges: Pledge[]; surveys: Survey[]; mentoring: MentoringApplication[]; notifications: Notice[]; logs: { id: string; by: string; action: string; date: string }[]; reports: { id: string; postId: string; by: string; reason: string }[];commentReports?:CommentReport[] }
 export const pledgeSchema = z.object({ title: z.string().trim().min(2).max(100), department: z.string().trim().min(1).max(50), description: z.string().trim().min(2).max(1000), details: z.string().trim().max(10000), progress: z.number().int().min(0).max(100), status: z.enum(['추진 예정','추진 중','완료','보류']) });
 export function canMatchMentoring(a: MentoringApplication, b: MentoringApplication, members: Member[]) {
   const mentor = members.find(m => m.id === a.memberId); const mentee = members.find(m => m.id === b.memberId);

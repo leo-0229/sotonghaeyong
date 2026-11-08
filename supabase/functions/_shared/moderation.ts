@@ -1,5 +1,7 @@
 import {ABUSIVE_TERMS,SEXUAL_TERMS,ABUSIVE_INITIALS} from './content-rules.ts';
 import {POLITICAL_REVIEW_TERMS} from './political-rules.ts';
+import {memberNameFragments} from './member-name-rules.ts';
+import {KORCEN_ENGLISH_TERMS} from './korcen-terms.ts';
 
 const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
@@ -23,10 +25,12 @@ function jamo(value:string,keyboard=false){
 const profanity=ABUSIVE_TERMS.map(term=>jamo(term)).filter(Boolean);
 const sexual=SEXUAL_TERMS.map(term=>jamo(term)).filter(Boolean);
 const political=POLITICAL_REVIEW_TERMS.map(term=>jamo(term)).filter(Boolean);
+const borrowedEnglish=new RegExp('(?:^|[^a-z])(?:'+KORCEN_ENGLISH_TERMS.join('|')+')(?=$|[^a-z])','iu');
+const communitySlang=['재기하다','재기하','재기해','여시','여성시대','펨코','에펨코리아','일베','일간베스트','디시','디씨','디시인사이드','운지','우흥','예아','북딱','북따닥','이기야'].map(term=>jamo(term));
 const initials=ABUSIVE_INITIALS.map(term=>jamo(term)).filter(Boolean);
 const allowedInitials=new Set(['ㄱㅅ','ㄱㄱ','ㄴㄴ','ㅇㅇ','ㅇㅋ','ㅇㅈ','ㅊㅋ','ㅊㅊ','ㅈㅅ','ㄹㅇ','ㅎㅇ','ㅂㅂ','ㅂㅇ'].map(term=>jamo(term)));
 
-export function localModeration(title:string,content:string,_teacherNames:string[]=[]):string[]{
+export function localModeration(title:string,content:string,memberNames:string[]=[]):string[]{
  // Do not concatenate title and body: syllables across separate fields are not a word.
  const fields=[title,content].map(field=>field.normalize('NFKC').replace(/[\p{Cf}\uFE00-\uFE0F]/gu,''));
  const reasons:string[]=[];
@@ -37,6 +41,9 @@ export function localModeration(title:string,content:string,_teacherNames:string
   .replace(/정자(?=동|역|\s*(?:에서|에)\s*(?:쉬|앉))/gu,'쉼터'));
  const versions=normalized.flatMap(field=>[jamo(field),jamo(field,true)]);
  const text=fields.join('\n');
+ const names=memberNameFragments(memberNames);const koreanNames=names.filter(name=>/^[가-힣]+$/u.test(name)).map(name=>jamo(name)).filter(name=>name.length>=3);
+ if(versions.some(value=>koreanNames.some(name=>value.includes(name)))||names.some(name=>/[a-z]/iu.test(name)&&fields.some(field=>field.toLowerCase().replace(/[\s\p{P}\p{Cf}\d]/gu,'').includes(name.toLowerCase()))))reasons.push('회원 이름 포함 · 운영진 확인 필요');
+ if(versions.some(value=>communitySlang.some(term=>value.includes(term)))||/(?:^|[^가-힣a-z\d])(?:북|딱)(?=$|[^가-힣a-z\d])/iu.test(text))reasons.push('지정 은어·커뮤니티 관련 표현 · 운영진 확인 필요');
  const teacherTerms=['쌤','썜','선생','교사'].map(term=>jamo(term));
  if(versions.some(value=>teacherTerms.some(term=>value.includes(term))))reasons.push('교사 호칭 포함 · 운영진 확인 필요');
  // Avoid treating the everyday verb 지나치다 as the organization name 나치.
@@ -55,6 +62,7 @@ export function localModeration(title:string,content:string,_teacherNames:string
  const runs=rawRuns;
  if(runs.some(run=>{const value=jamo(run);return value.length>=5&&!/^[ㅋㅎㄷㅠㅜ]+$/u.test(value)&&!allowedInitials.has(value)&&new Set(value).size>=3;}))reasons.push('긴 초성 표현 확인 필요');
  if(/(?:너(?:는|희)?|너네|니네|쟤|걔|이|저)\s*(?:새끼|놈|년|돼지|고아)|(?:죽어|못생겼|멍청|왕따\s*시키|쓰레기\s*(?:같|새끼)|한심)/u.test(text))reasons.push('타인 비방 의심 표현');
+ if(borrowedEnglish.test(text)&&!reasons.includes('욕설·혐오 의심 표현'))reasons.push('욕설·혐오 의심 표현');
  return [...new Set(reasons)];
 }
 export function publicationStatus(ruleReasons:string[]):'PENDING'|'APPROVED'{

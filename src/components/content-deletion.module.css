@@ -1,0 +1,4 @@
+.dialog { width:min(520px,calc(100vw - 32px)); max-height:calc(100dvh - 40px); margin:auto; padding:24px; border:1px solid #cad3e1; border-radius:16px; background:#fff; color:#172544; box-shadow:0 20px 80px #12213d40; overflow:auto; }
+.dialog::backdrop { background:#10203e99; }
+.dialog form { display:grid; gap:16px; }
+.dialog h2,.dialog p { margin:0; line-height:1.65; }

@@ -1,0 +1,7 @@
+The application's own source is Copyright (c) 2026 leo-0229, all rights reserved.
+Selected moderation data is adapted from Tanat05/Korcen, Copyright (c) 2026 Tanat, MIT License.
+Source revision: eecd9763dbdccce3dc96ddb578ef0b6396058fa9
+Source: https://github.com/Tanat05/korcen
+Discovery: https://github.com/Tanat05/korean-profanity-resources
+Modified: literal term selection, normalization and deduplication. Identity-only labels, single-character markers and mixed-script patterns were excluded. No upstream Python code is included.
+The full MIT license is distributed with this site at licenses/korcen-MIT.txt.

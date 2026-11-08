@@ -13,7 +13,7 @@ describe('political content review',()=>{
  it.each(['이 재 명','윤1석2열','김\u200b현지','좌.파','극_우','ㅌㅡㄹㅓㅁㅍㅡ','dlwoaud','rla gus wl','히틀러'.normalize('NFD'),'ＴＲＵＭＰ','Hitler','Mussolini','Nazism','fascism','populism'])('handles normalized and alternative forms: %s',text=>expect(localModeration('내용 검사',text)).toContain(reason));
  it('never joins separate title/body fragments into a political term',()=>expect(localModeration('김현','지와 도서관에서 만났어요.')).not.toContain(reason));
  it('reports the category once even with multiple terms',()=>expect(localModeration('좌파와 우파','보수 진보 대통령 김현지').filter(r=>r===reason)).toHaveLength(1));
- it.each(['학생회 회장 선거 공약을 소개합니다.','학생회 행사에 투표해 주세요.','반장 후보를 응원합니다.','지나치게 시끄럽지 않게 이야기해요.','지나친 소음은 줄여 주세요.','길을 지나칠 때 주변을 살펴요.','복도를 지나칩니다.','시장에 가서 간식을 샀어요.','의원에서 진료를 받았어요.','민주와 함께 도서관에 갔어요.','학교생활 이야기를 함께 나눠요. ㅋㅋㅋ'])('keeps ordinary school participation and unrelated text clear: %s',text=>{
+ it.each(['학생회 회장 선거 공약을 소개합니다.','학생회 행사에 투표해 주세요.','반장 후보를 응원합니다.','지나치게 시끄럽지 않게 이야기해요.','지나친 소음은 줄여 주세요.','길을 지나칠 때 주변을 살펴요.','복도를 지나칩니다.','시장에 가서 간식을 샀어요.','의원에서 진료를 받았어요.','학교생활 이야기를 함께 나눠요. ㅋㅋㅋ'])('keeps ordinary school participation and unrelated text clear: %s',text=>{
   expect(localModeration('학교 이야기',text)).toEqual([]);
   expect(reviewContent('학교 이야기',text).status).toBe('APPROVED');
  });

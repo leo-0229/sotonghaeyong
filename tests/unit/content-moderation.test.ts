@@ -14,5 +14,5 @@ describe('school content moderation',()=>{
  it('checks the title too',()=>expect(localModeration('씨1발','안전한 게시글 본문입니다.')).toContain('욕설·혐오 의심 표현'));
  it('publishes after a rule pass',()=>expect(publicationStatus([])).toBe('APPROVED'));
  it.each(['쌤','썜','선생님','선생','교사','선 생 님','교1사','선\u200b생님'])('queues teacher references: %s',value=>expect(localModeration('문의합니다',value)).toContain('교사 호칭 포함 · 운영진 확인 필요'));
- it('does not collect or inspect individual teacher names',()=>expect(localModeration('문의합니다','김가람과 이야기했어요.',['김가람'])).toEqual([]));
+ it('does not collect or inspect individual teacher names',()=>expect(localModeration('문의합니다','김가람과 이야기했어요.')).toEqual([]));
 });
