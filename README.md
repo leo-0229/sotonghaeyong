@@ -2,6 +2,8 @@
 
 GitHub 저장소: [leo-0229/sotonghaeyong_beta_1.0](https://github.com/leo-0229/sotonghaeyong_beta_1.0)
 
+임시 사이트: **[소통해용 열기](https://leo-0229.github.io/sotonghaeyong_beta_1.0/)**. 2026-11-08 공개 및 GitHub Pages 배포 완료. 현재는 로그인 서버 미설정 잠금 화면이며 실제 회원 계정은 아직 발급하지 않았습니다.
+
 진주 문산중학교 학생 자치 커뮤니티입니다. **GitHub Pages 정적 사이트 + Supabase Auth/PostgreSQL/Edge Function** 구성을 사용합니다.
 
 처음 배포한다면 [쉬운 시작 안내](docs/BEGINNER_SETUP.md)부터 읽어 주세요.
@@ -39,7 +41,7 @@ npm.cmd run dev
 
 - **로컬 체험**은 가상 회원·일정과 localStorage로 동작합니다. 실제 개인정보를 입력하지 마세요. 이전 v1 데이터와 새 v2 데이터를 분리했습니다.
 - **운영 코드**는 Supabase가 설정되면 실제 계정 인증 후 RLS가 적용된 `community_snapshot`으로 읽고 검증된 RPC로 저장합니다. 운영 데이터 전체를 localStorage에 저장하지 않습니다. Auth 세션은 Supabase 클라이언트가 관리합니다.
-- **외부 서비스는 아직 연결하지 않았습니다.** 사용자가 Supabase 프로젝트·AI 키·아이톡톡 승인·GitHub 저장소가 없다고 답했으므로 실제 프로젝트 생성, 계정 발급, AI 원격 호출, 배포는 실행하지 않았습니다.
+- **GitHub 저장소와 Pages는 연결했습니다.** 실제 Supabase 프로젝트·계정·AI 서비스·아이톡톡은 아직 연결하지 않았습니다. 실제 계정 발급과 원격 데이터 권한 검증은 다음 단계입니다.
 - 운영 빌드에 설정이 없으면 로그인 설정 안내만 표시됩니다. 공개 호스트에서는 체험 계정을 선택할 수 없습니다. AI 미연결 상태를 자동 승인으로 처리하지 않습니다.
 
 ## GitHub Pages

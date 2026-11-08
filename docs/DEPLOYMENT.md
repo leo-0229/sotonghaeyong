@@ -1,6 +1,6 @@
 # GitHub Pages + Supabase 연결 순서
 
-현재는 로컬 코드와 정적 산출물이 준비된 상태입니다. 실제 Supabase 프로젝트·계정·AI 서비스·GitHub 저장소는 연결하지 않았습니다.
+2026-11-08 GitHub 저장소 공개와 [Pages 임시 배포](https://leo-0229.github.io/sotonghaeyong_beta_1.0/)를 완료했습니다. `locked-preview` 상태이며 실제 Supabase 프로젝트·계정·AI 서비스는 아직 연결하지 않았습니다. 아래는 실제 로그인 서버를 연결하기 위한 절차입니다.
 
 ## 1. 데이터베이스
 

@@ -1,6 +1,8 @@
 # 소통해용 임시 GitHub Pages 배포 설계
 
-현재 저장소·Supabase 연결 전입니다. 배포 파일과 발급 제한은 준비했으며 실제 배포나 실제 계정 발급은 실행하지 않았습니다.
+2026-11-08 사용자 승인으로 `leo-0229/sotonghaeyong_beta_1.0`을 공개하고 [Pages 임시 사이트](https://leo-0229.github.io/sotonghaeyong_beta_1.0/)를 배포했습니다. 현재 `locked-preview`이며 실제 Supabase 연결·회원 계정 발급은 아직 진행하지 않았습니다.
+
+배포 검증: GitHub Actions 성공, 실제 HTTPS 접속·자산 로딩·해시 경로 새로고침·로그인 잠금·가상 역할 선택 및 학교 자료 미노출 확인. 공개 전 저장 이력 4개·파일 버전 77개에 비밀키/비공개 파일 패턴 검사를 수행했고, `npm audit --omit=dev` 결과 알려진 취약점은 0건이었습니다. 이 검사는 모든 개인정보나 미공개 취약점의 부재를 보장하지 않으며 실제 운영 서버의 권한 검증을 대체하지 않습니다.
 
 ```mermaid
 flowchart LR
