@@ -1,0 +1,6 @@
+.group { border-top:1px solid #e5eaf2; margin-top:10px; padding-top:8px; }
+.group summary { list-style:none; cursor:pointer; padding:9px 7px; display:flex; justify-content:space-between; align-items:center; color:#334155; font-size:13px; font-weight:700; }
+.group summary::-webkit-details-marker { display:none; }
+.group summary::after { content:'＋'; font-weight:400; color:#66758a; }
+.group[open] summary::after { content:'−'; }
+.group summary:focus-visible { outline:2px solid #20365e; outline-offset:2px; }

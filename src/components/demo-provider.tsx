@@ -5,8 +5,9 @@ import { createSeed } from '@/lib/seed';
 import { demoAllowed, supabase } from '@/lib/supabase/browser';
 import { cloudMutation } from '@/lib/backend';
 import { localModeration } from '@/lib/moderation';
+import {BOARD_PREFIXES} from '../../supabase/functions/_shared/boards';
 import {authEmail,normalizeLoginId,parseStudentId,temporaryCredentials,validateCredentials} from '@/lib/accounts';
-import { ROLE_INFO, canManageTask, canReadSuggestion, canReview, isTeacher, level, postSchema, submitForClass, suggestionSchema, type AppState, type Member, type Role, type SubmissionStatus } from '@/lib/domain';
+import { ROLE_INFO, canManageTask, canReadSuggestion, canReview, isTeacher, isCouncil, level, postSchema, submitForClass, suggestionSchema, type AppState, type Member, type Role, type SubmissionStatus } from '@/lib/domain';
 
 const STORAGE_KEY = 'mpms-draft-v2';
 type Update = (state: AppState, member: Member) => AppState;
@@ -19,11 +20,16 @@ interface DemoContextValue {
   changeCredentials:(loginId:string,currentPassword:string,newPassword:string)=>Promise<void>;
   notify: (text: string) => void; commit: (update: Update) => Promise<void>;
   switchMember: (id: string | null) => Promise<void>; reset: () => void;
-  createPost: (input: { board: string; title: string; content: string }, draft?: boolean, editId?: string) => Promise<string>;
+  createPost: (input: { board: string; title: string; content: string; prefix?: string }, draft?: boolean, editId?: string) => Promise<string>;
+  refreshData:()=>Promise<void>;
+  createComment:(postId:string,content:string,parentId?:string)=>Promise<void>;
+  toggleHeart:(kind:'post'|'comment',id:string)=>Promise<void>;
+  replySuggestion:(id:string,content:string)=>Promise<void>;
+  reviewSuggestionContent:(kind:'suggestion'|'suggestion-reply',id:string,approve:boolean)=>Promise<void>;
   reviewPost: (id: string, approve: boolean, reason?: string) => Promise<void>;
   saveSubmission: (taskId: string, answers: Record<string, string>, version: number, draft: boolean) => Promise<void>;
   applyEvent: (id: string) => Promise<void>;
-  createSuggestion: (input: { title: string; category: string; content: string }) => Promise<void>;
+  createSuggestion: (input: { title: string; category: string; content: string; visibility?:'PUBLIC'|'PRIVATE' }) => Promise<void>;
   register: (name: string, classId: string) => string;
 }
 const DemoContext = createContext<DemoContextValue | null>(null);
@@ -145,20 +151,20 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const switchMember = async (id: string | null) => {
     if(supabase){if(id)throw new Error('운영 환경에서는 역할을 임의로 바꿀 수 없습니다.');const {error}=await supabase.auth.signOut();if(error)throw error;const empty=emptyState();ref.current=empty;setState(empty);return;}
     if(!demoAllowed())throw new Error('운영 로그인 서버가 설정되지 않았습니다.');
-    persist({ ...ref.current, currentMemberId: id }); notify(id ? '체험 계정을 전환했습니다.' : '로그아웃했습니다.');
+    persist({ ...ref.current, currentMemberId: id,posts:ref.current.posts.map(p=>({...p,hearts:{count:p.demoHeartUsers?.length??0,liked:!!id&&!!p.demoHeartUsers?.includes(id)},comments:p.comments.map(c=>({...c,hearts:{count:c.demoHeartUsers?.length??0,liked:!!id&&!!c.demoHeartUsers?.includes(id)}}))})) }); notify(id ? '체험 계정을 전환했습니다.' : '로그아웃했습니다.');
   };
   const reset = () => { persist(createSeed()); notify('체험 데이터를 처음 상태로 되돌렸습니다.'); };
-  async function createPost(input: { board: string; title: string; content: string }, draft = false, editId?: string) {
-    const parsed = postSchema.parse(input); const id = editId ?? uid();
+  async function createPost(input: { board: string; title: string; content: string; prefix?: string }, draft = false, editId?: string) {
+    const parsed = postSchema.parse(input);parsed.prefix=parsed.prefix||BOARD_PREFIXES[parsed.board]?.[0]||''; const id = editId ?? uid();
     if(supabase){
-      setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{...parsed,draft,editId}});if(error)throw new Error('게시글을 저장하지 못했습니다. 검토 서버 연결을 확인해 주세요.');await refresh();notify(draft?'임시 저장했습니다.':'승인 대기로 저장했습니다. 운영진 승인 후 공개됩니다.');return data.id as string;}finally{setBusy(false);}
+      setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{...parsed,draft,editId}});if(error)throw new Error('게시글을 저장하지 못했습니다. 검토 서버 연결을 확인해 주세요.');await refresh();notify(draft?'임시 저장했습니다.':data.status==='APPROVED'?'AI 검토를 통과해 공개되었습니다.':'승인 대기로 저장했습니다.');return data.id as string;}finally{setBusy(false);}
     }
     await commit((s, m) => {
       if (['notice', 'council', 'report'].includes(parsed.board) && level(m) < 4) throw new Error('공식 게시판은 LEVEL 4 이상만 작성할 수 있습니다.');
       const previous = s.posts.find(p => p.id === id);
-      if (previous && (previous.authorId !== m.id || !['DRAFT', 'REJECTED'].includes(previous.status))) throw new Error('본인의 임시 저장·반려 글만 수정할 수 있습니다.');
-      const reasons=localModeration(parsed.title,parsed.content);
-      const post = { ...previous, ...parsed, id, authorId: m.id, author: m.name, date: stamp(), status: draft ? 'DRAFT' as const : 'PENDING' as const, moderationReasons:[...reasons,'전체 게시글 운영진 승인 필요'], comments: previous?.comments ?? [], views: previous?.views ?? 0, reason: undefined };
+      if (previous && (previous.authorId !== m.id || !['DRAFT', 'REJECTED', 'PENDING', 'APPROVED'].includes(previous.status))) throw new Error('본인 글만 수정할 수 있으며 숨김 처리된 글은 운영진에게 문의해 주세요.');
+      const reasons=localModeration([parsed.prefix,parsed.title].filter(Boolean).join(' '),parsed.content);
+      const post = { ...previous, ...parsed, id, authorId: m.id, author: m.name, date: previous?.date??stamp(), updatedAt:stamp(), status: draft ? 'DRAFT' as const : 'PENDING' as const, moderationReasons:[...reasons,'전체 게시글 운영진 승인 필요'], comments: previous?.comments ?? [], views: previous?.views ?? 0, reason: undefined };
       return addLog({ ...s, posts: previous ? s.posts.map(p => p.id === id ? post : p) : [post, ...s.posts] }, m, `${draft ? '글 임시 저장' : '글 승인 요청'}: ${post.title}`);
     });
     notify(draft ? '글을 임시 저장했습니다.' : '승인을 요청했습니다. 검토 후 공개됩니다.'); return id;
@@ -197,9 +203,35 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       return { ...s, events: s.events.map(e => e.id === id ? { ...e, applications: cancel ? e.applications.filter(x => x !== m.id) : [...e.applications, m.id] } : e) };
     }); notify('행사 신청 상태를 변경했습니다.');
   }
-  async function createSuggestion(input: { title: string; category: string; content: string }) {
-    const parsed = suggestionSchema.parse(input);
-    await commit((s, m) => ({ ...s, suggestions: [{ ...parsed, id: uid(), authorId: m.id, status: '접수 완료', date: stamp() }, ...s.suggestions] })); notify('비공개 건의를 접수했습니다. 내 건의 내역에서 확인하세요.');
+  async function createComment(postId:string,content:string,parentId?:string){
+    if(content.trim().length<2||content.length>2000)throw new Error('댓글은 2~2000자로 입력하세요.');
+    if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'comment',postId,content,parentId}});if(error)throw new Error('댓글을 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'댓글이 공개되었습니다.':'댓글 승인을 요청했습니다.');}finally{setBusy(false);}return;}
+    await commit((s,m)=>{const post=s.posts.find(p=>p.id===postId);if(!post||post.status!=='APPROVED')throw new Error('공개된 글에 댓글을 작성하세요.');return {...s,posts:s.posts.map(p=>p.id===postId?{...p,comments:[...p.comments,{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:'PENDING',parentId,moderationReasons:localModeration('',content)}]}:p)};});notify('댓글 승인을 요청했습니다.');
+  }
+  async function toggleHeart(kind:'post'|'comment',id:string){
+    if(supabase){const {error}=await supabase.rpc('toggle_heart',{p_kind:kind,p_id:id});if(error)throw new Error('하트를 변경하지 못했습니다. 공개된 글·댓글인지 확인하세요.');await refresh();return;}
+    await commit((s,m)=>({...s,posts:s.posts.map(p=>{
+      if(kind==='post'&&p.id===id){const voters=p.demoHeartUsers??[];const changed=voters.includes(m.id)?voters.filter(u=>u!==m.id):[...voters,m.id];return {...p,demoHeartUsers:changed,hearts:{count:changed.length,liked:changed.includes(m.id)}};}
+      return {...p,comments:p.comments.map(c=>{if(kind!=='comment'||c.id!==id)return c;const voters=c.demoHeartUsers??[];const changed=voters.includes(m.id)?voters.filter(u=>u!==m.id):[...voters,m.id];return {...c,demoHeartUsers:changed,hearts:{count:changed.length,liked:changed.includes(m.id)}};})};
+    })}));
+  }
+  async function createSuggestion(input:{title:string;category:string;content:string;visibility?:'PUBLIC'|'PRIVATE'}){
+    const parsed=suggestionSchema.parse(input);
+    if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'suggestion',...parsed}});if(error)throw new Error('건의를 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'건의를 접수했습니다.':'건의를 접수했습니다. 공개 글은 검토 후 표시됩니다.');}finally{setBusy(false);}return;}
+    await commit((s,m)=>({...s,suggestions:[{...parsed,id:uid(),authorId:m.id,status:'접수 완료',publicationStatus:'PENDING',date:stamp()},...s.suggestions]}));notify('건의를 접수했습니다.');
+  }
+  async function replySuggestion(id:string,content:string){
+    if(!isCouncil(ref.current.members.find(m=>m.id===ref.current.currentMemberId)))throw new Error('학생회 임원만 답변할 수 있습니다.');
+    if(content.trim().length<5)throw new Error('답변은 5자 이상 입력하세요.');
+    if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'suggestion-reply',suggestionId:id,content}});if(error)throw new Error('답변을 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'답변이 공개되었습니다.':'답변 승인을 요청했습니다.');}finally{setBusy(false);}return;}
+    await commit((s,m)=>({...s,suggestions:s.suggestions.map(item=>item.id===id?{...item,replies:[...(item.replies??[]),{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:'PENDING'}]}:item)}));notify('답변 승인을 요청했습니다.');
+  }
+  async function reviewSuggestionContent(kind:'suggestion'|'suggestion-reply',id:string,approve:boolean){
+    if(supabase){const {error}=await supabase.rpc('review_suggestion_content',{p_kind:kind,p_id:id,p_decision:approve?'APPROVED':'REJECTED'});if(error)throw new Error('다른 운영진이 검토해야 합니다.');await refresh();return;}
+    await commit((s,m)=>{if(level(m)<3)throw new Error('검토 권한이 없습니다.');return {...s,suggestions:s.suggestions.map(item=>{
+      if(kind==='suggestion'&&item.id===id){if(item.authorId===m.id)throw new Error('다른 운영진이 검토해야 합니다.');return {...item,publicationStatus:approve?'APPROVED':'REJECTED'};}
+      return {...item,replies:item.replies?.map(reply=>{if(kind!=='suggestion-reply'||reply.id!==id)return reply;if(reply.authorId===m.id)throw new Error('다른 운영진이 검토해야 합니다.');return {...reply,status:approve?'APPROVED':'REJECTED'};}),...(kind==='suggestion-reply'&&approve&&item.replies?.some(r=>r.id===id)?{status:'처리 완료' as const}:{})};
+    })};});
   }
   function register(name: string, classId: string) {
     if(!demoAllowed())throw new Error('회원 계정은 담당 교사가 별도로 발급합니다.');
@@ -207,7 +239,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,createComment,toggleHeart,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }

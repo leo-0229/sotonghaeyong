@@ -11,6 +11,7 @@ import { level } from '@/lib/domain';
 import { Button } from './ui/button';
 import { ModerationSettings } from './moderation-settings';
 import { CredentialSetup } from './credential-setup';
+import {CouncilChannel} from './council-channel';
 import { IssueAccountScreen } from './issue-account';
 
 export function RouteScreen({ segments }: { segments: string[] }) {
@@ -33,6 +34,7 @@ export function RouteScreen({ segments }: { segments: string[] }) {
     return <TaskDetailScreen key={`${id}-${action}`} id={id} submit={action === 'submit'}/>;
   }
   if (area === 'suggestions') return <SuggestionsScreen create={id === 'new'}/>;
+  if(route==='council-channel')return <CouncilChannel/>;
   if (route === 'mentoring') return <MentoringScreen/>;
   if (route === 'surveys') return <SurveysScreen/>;
   if (route === 'mypage') return <MyPageScreen/>;
@@ -71,7 +73,7 @@ function DocumentScreen({ kind }: { kind: string }) {
     ] },
     terms: { title: '커뮤니티 이용 규칙', intro: '소통해용 개발 초안의 기본 이용 규칙입니다.', sections: [
       ['서로를 존중해 주세요', '친구를 비방하거나 차별하는 말, 허위 정보, 다른 사람의 개인정보가 담긴 글을 작성하지 마세요.'],
-      ['게시글과 댓글 검토', '모든 게시글은 작성자 등급과 AI 판정에 관계없이 운영진 승인 후 공개됩니다. 규칙·AI 검사는 검토를 돕는 참고 정보입니다. 반려 시 수정 후 다시 요청할 수 있으며 자신의 글을 직접 수동 승인할 수 없습니다. 댓글은 운영진 검토 후 공개됩니다.'],
+      ['게시글과 댓글 검토', '게시글·댓글은 규칙과 AI 검사에서 모두 안전하다고 확인되면 자동 공개됩니다. 의심되는 내용, AI 미연결·오류는 운영진 검토를 거칩니다. 수정 시에도 재검사하며 본인이 직접 수동 승인할 수 없습니다.'],
       ['학급 대표 제출', '반장과 부반장은 자신의 학급을 대표하여 하나의 제출 건을 함께 관리합니다. 제출·수정 이력을 남기며 마감 전까지 수정할 수 있습니다. 최종 확정 절차는 없고 추가 수정 요청은 대표에게 개인적으로 연락합니다.'],
       ['정식 운영', '실제 운영 약관과 처리 기준은 학교 담당자의 검토 및 운영 승인 이후 확정합니다.'],
     ] },

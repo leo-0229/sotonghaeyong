@@ -14,6 +14,22 @@ Deno.serve(async(req:Request)=>{
   const {data:{user},error:authError}=await caller.auth.getUser(jwt);if(authError||!user)return reply({error:'로그인이 필요합니다.'},401);
   const raw=await req.text();if(raw.length>8000)return reply({error:'요청 크기가 너무 큽니다.'},413);const input=JSON.parse(raw);
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+  if(['mentor-contact','mentor-contact-share','mentor-contact-revoke'].includes(input.operation)){
+   const {data:lvl,error:permissionError}=await caller.rpc('current_level');if(permissionError||!lvl)return reply({error:'로그인 정보 설정을 먼저 완료하세요.'},403);
+   if(input.operation==='mentor-contact-revoke'){const {error}=await caller.rpc('revoke_mentoring_contact');if(error)return reply({error:'공유 취소에 실패했습니다.'},400);}
+   if(input.operation==='mentor-contact-share'){
+    const phone=typeof input.phone==='string'?input.phone.replace(/[\s()-]/g,''):'';
+    if(input.consent!==true||!/^01[016789]\d{7,8}$/.test(phone))return reply({error:'휴대전화 번호와 공유 동의를 확인하세요.'},400);
+    const {data:state,error}=await caller.rpc('mentoring_contact_state');if(error||!state?.partnerId)return reply({error:'현재 매칭된 상대가 있어야 공유할 수 있습니다.'},403);
+    const sealed=await sealTemporaryPassword(Deno.env.get('TEMP_CREDENTIAL_KEY')??'',`phone:${user.id}:${state.partnerId}`,phone);
+    const {error:saveError}=await admin.rpc('store_mentoring_contact',{p_user:user.id,p_partner:state.partnerId,p_sealed:sealed});if(saveError)return reply({error:'매칭 상태가 바뀌었거나 저장하지 못했습니다.'},409);
+   }
+   const {data:state,error}=await caller.rpc('mentoring_contact_state');if(error)return reply({error:'연락처 공유 상태를 확인하지 못했습니다.'},400);
+   const secret=Deno.env.get('TEMP_CREDENTIAL_KEY')??'';
+   const ownPhone=state.ownSealed?await openTemporaryPassword(secret,`phone:${user.id}:${state.partnerId}`,state.ownSealed):null;
+   const partnerPhone=state.partnerSealed?await openTemporaryPassword(secret,`phone:${state.partnerId}:${user.id}`,state.partnerSealed):null;
+   return reply({partnerId:state.partnerId,ownShared:state.ownShared,partnerShared:state.partnerShared,ownPhone,partnerPhone});
+  }
   if(input.operation==='reissue'||input.operation==='delete'){
    const {data:lvl,error:permissionError}=await caller.rpc('current_level');
    if(permissionError||lvl<4||(input.operation==='reissue'&&lvl!==5))return reply({error:'삭제는 L4 이상, 재발급은 L5만 가능합니다.'},403);

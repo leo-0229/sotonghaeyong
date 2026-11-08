@@ -1,6 +1,6 @@
 # GitHub Pages + Supabase 연결 순서
 
-2026-11-08 GitHub 저장소 공개와 [Pages 임시 배포](https://leo-0229.github.io/sotonghaeyong_beta_1.0/)를 완료했습니다. `locked-preview` 상태이며 실제 Supabase 프로젝트·계정·AI 서비스는 아직 연결하지 않았습니다. 아래는 실제 로그인 서버를 연결하기 위한 절차입니다.
+2026-11-08 GitHub 저장소 공개와 [Pages 임시 배포](https://leo-0229.github.io/sotonghaeyong/)를 완료했습니다. Supabase 로그인은 연결되었습니다. AI API는 미연결 상태이며, 아래는 새 환경에서 같은 구성을 만드는 절차입니다. 최신 정책은 [게시판·소통 기능](COMMUNITY_UPDATE.md)을 따릅니다.
 
 ## 1. 데이터베이스
 
@@ -17,6 +17,12 @@ supabase/migrations/202611080007_reusable_temporary_accounts.sql
 supabase/migrations/202611080008_account_recovery_and_deletion.sql
 supabase/migrations/202611080009_l4_information_department.sql
 supabase/migrations/202611080010_l4_account_management.sql
+supabase/migrations/202611080011_board_prefixes_and_editing.sql
+supabase/migrations/202611080012_reactions_and_replies.sql
+supabase/migrations/202611080013_council_channel_and_mentor_contacts.sql
+supabase/migrations/202611080014_public_suggestions_and_submission_directory.sql
+supabase/migrations/202611080015_community_snapshot_and_workflows.sql
+supabase/migrations/202611080016_channel_notification_links.sql
 ```
 
 002는 기존 학급 제출의 보완·접수 확정 상태를 `SUBMITTED`로 바꿉니다. 이전 과목별 멘토링 테이블은 이력 기반으로 남지만 새 화면은 `school_life_mentoring`을 사용합니다. 운영 이력이 있다면 먼저 백업과 기존 매칭 검토가 필요합니다.
@@ -40,7 +46,7 @@ NEXT_PUBLIC_ENABLE_DEMO=false
 
 현재 계정 정책은 **[계정 안내](ACCOUNTS.md)** 를 따릅니다. 학교에서 학번·이름·성별을 등록하면 무작위 임시 아이디와 비밀번호를 발급하며, 첫 로그인에서 두 정보를 모두 변경해야 합니다. 실제 개인 이메일은 필요하지 않습니다.
 
-최초 담당 교사는 운영자 CLI로 발급하고, 이후 학생 계정은 교사 화면의 **임시 계정 발급**에서 만듭니다. 계정 처리용 account-access Edge Function도 추가 배포하세요. 기존 이메일 방식의 계정은 전환 전까지 유지됩니다.
+최초 담당 교사는 운영자 CLI로 발급하고, 이후 계정은 L4·L5의 **임시 계정 발급**에서 만듭니다. L5 발급·복구 등 세부 권한은 계정 안내를 따릅니다. 계정 처리용 account-access Edge Function도 추가 배포하세요. 기존 이메일 방식의 계정은 전환 전까지 유지됩니다.
 
 ## 4. 검토 보조 Edge Function
 
@@ -64,13 +70,13 @@ supabase functions deploy account-access
 
 `supabase/config.toml`은 게이트웨이 구형 JWT 검증 대신 **함수 내부 `Auth.getUser(token)` 검증**을 사용합니다. 토큰 검증과 ACTIVE 확인을 생략하지 않습니다.
 
-교사 계정의 **검토 보조 설정**에서 교사명 명단을 등록합니다. 일반 회원에게 공개하지 않고 AI 요청에도 포함하지 않으며 서버 규칙 검사에만 사용합니다. AI에는 제목·본문만 전송하고 `store: false`를 요청합니다. 이는 외부 서비스의 모든 보유 정책을 대체하지 않습니다.
+교사명 검사는 현재 사용하지 않습니다. AI에는 제목·본문만 전송하고 `store: false`를 요청합니다. 이는 외부 서비스의 모든 보유 정책을 대체하지 않습니다.
 
-모든 글은 등급·게시판·AI 결과와 관계없이 운영진 승인 전까지 비공개입니다. AI는 참고 정보만 제공합니다. 004는 서비스 전용 저장 함수에서도 APPROVED를 거부하므로 신규 글은 DRAFT/PENDING으로만 저장됩니다. L3 이상 다른 운영진의 별도 승인 후 공개됩니다. AI 키 없이도 승인 대기 저장이 가능합니다.
+규칙 검사와 AI 결과가 모두 명확히 안전한 경우만 자동 승인합니다. AI 미연결·오류·의심 결과는 운영진 검토 대기입니다. 규칙에 걸린 글은 자동 공개하지 않습니다.
 
-## 5. GitHub Pages
+## 5. GitHub Pages 배포
 
-먼저 [임시 배포 설계](PILOT_RELEASE.md)의 공개 범위와 계정 수 제한을 확인하세요. 저장소에 소스를 올리고 **Settings → Pages → Source → GitHub Actions**를 선택합니다. 처음에는 수동 workflow의 `locked-preview`로 서버 미설정 로그인 화면을 배포할 수 있습니다. 실제 로그인을 연결할 때 Actions Variables에 다음 **공개 값 두 개**를 등록하고 `connected`로 수동 실행하세요.
+GitHub 저장소의 **Settings → Pages → Source → GitHub Actions**를 선택합니다. Actions Variables에 다음 **공개 값 두 개**를 등록하고 수동 workflow를 `connected`로 실행하세요.
 
 ```text
 NEXT_PUBLIC_SUPABASE_URL

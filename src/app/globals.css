@@ -65,3 +65,12 @@
 .tabs>button.active:after{background:var(--primary)}
 .toast,.saving-indicator{background:var(--primary-dark);border-color:#405b85}
 @media(max-width:760px){.login-header{padding:20px;gap:9px}.login-header>.brand{font-size:24px}.login-main{padding:24px 16px 45px;min-height:calc(100vh - 110px)}.login-main .auth-card{margin:0 auto;padding:30px 22px 25px}.auth-card>h1{font-size:25px}.auth-card .setup-notice{padding:17px 14px;gap:10px}.cafe-tabs{padding:13px 16px 11px;border-radius:0}.hero-campus{opacity:.78}}
+
+/* Readable member boards and compact navigation. */
+.main-content .page-heading p,.panel .muted{color:#526176;font-size:13px;line-height:1.8}
+.article .article-body{color:#1e293b;font-size:15px;line-height:1.95;white-space:pre-wrap;overflow-wrap:anywhere}
+.panel table td{color:#334155;font-size:13px}.panel table th{color:#475569;font-size:12px}
+.article-meta{color:#475569;font-size:12px;line-height:1.8;flex-wrap:wrap}.panel h2{color:#243750}
+.form-panel input,.form-panel textarea,.form-panel select{font-size:14px}.nav-link{font-size:13px;min-height:34px;color:#3b4e69}
+@media(min-width:761px){.sidebar{align-self:start;position:sticky;top:16px;max-height:calc(100dvh - 32px);overflow-y:auto}}
+@media(max-width:760px){.main-content .page-heading p{font-size:12px}.article .article-body{font-size:14px}.panel table td{font-size:12px}.cafe-tabs{gap:18px}.page-heading h1{font-size:25px}}

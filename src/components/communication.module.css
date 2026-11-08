@@ -1,0 +1,15 @@
+.channel { display:grid; grid-template-columns:minmax(0,1fr); gap:20px; }
+.channel:has(>section:nth-child(2)) { grid-template-columns:270px minmax(0,1fr); }
+.heading { padding:20px; margin:0; font-size:16px; }
+.thread { display:flex; flex-direction:column; gap:7px; width:100%; padding:15px 18px; border:0; border-top:1px solid #e3e9f1; background:white; text-align:left; cursor:pointer; color:#334155; }
+.thread[aria-pressed=true] { background:#edf2fa; }
+.thread span { overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:100%; }
+.thread time { font-size:11px; color:#526176; }
+.messages { max-height:540px; overflow-y:auto; display:flex; flex-direction:column; gap:12px; padding:18px 2px; margin:15px 0; }
+.message,.mine { border:1px solid #dce4ef; border-radius:9px; padding:13px 16px; max-width:90%; background:#f6f8fc; align-self:flex-start; }
+.mine { align-self:flex-end; background:#edf2fa; border-color:#cfd9ea; }
+.messages article div { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+.messages time { font-size:11px; color:#526176; }
+.messages p { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.8; margin:8px 0 0; font-size:14px; color:#1e293b; }
+.system { background:#fffbea; border:1px solid #e8dfac; border-radius:7px; padding:12px 15px; align-self:stretch; }
+@media(max-width:900px){.channel:has(>section:nth-child(2)){grid-template-columns:1fr}.messages{max-height:460px}.mine,.message{max-width:95%}}
