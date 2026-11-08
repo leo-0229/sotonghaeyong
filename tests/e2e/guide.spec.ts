@@ -9,7 +9,7 @@ test('guide requires login and explains own deletion versus L4 moderation on mob
   await expect(page.getByRole('heading', {name: '이용 가이드', exact: true})).toBeVisible();
   const levels = page.getByRole('group', {name: '레벨 안내 선택'});
   await expect(levels.getByRole('button', {name: /^L1/})).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText('본인 게시글 수정·삭제, 본인 댓글 삭제', {exact: true})).toBeVisible();
+  await expect(page.getByText('본인 게시글·댓글 수정·삭제, 본인 건의 수정', {exact: true})).toBeVisible();
   await levels.getByRole('button', {name: /^L4/}).click();
   await expect(page.getByText('다른 사람의 게시글·댓글 강제 삭제: 5자 이상 사유와 확인 필요', {exact: true})).toBeVisible();
   await expect(page.getByRole('link', {name: '회원 · 계정 관리', exact: true})).toHaveCount(0);

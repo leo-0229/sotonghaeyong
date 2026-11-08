@@ -16,6 +16,7 @@ Deno.serve(async(req:Request)=>{
   const {data:level,error:permissionError}=await caller.rpc('current_level');if(permissionError||!level)return reply({error:'로그인 정보 설정을 먼저 완료하세요.'},403);
   const raw=await req.text();if(new TextEncoder().encode(raw).length>40000)return reply({error:'요청이 너무 큽니다.'},413);
   const input=JSON.parse(raw);const kind=input.kind??'post';
+  if(input.editId!=null&&(typeof input.editId!=='string'||(kind!=='post'&&(typeof input.expectedUpdatedAt!=='string'||!Number.isFinite(Date.parse(input.expectedUpdatedAt))))))return reply({error:'수정 대상과 수정 시각을 확인하세요.'},400);
   const title=kind==='comment'||kind==='suggestion-reply'?'':input.title;
   const content=input.content;
   const max=kind==='comment'?2000:kind==='suggestion-reply'?3000:kind==='suggestion'?5000:10000;
@@ -38,11 +39,12 @@ Deno.serve(async(req:Request)=>{
   const names=draft?{data:[],error:null}:await admin.rpc('moderation_member_names');
   const review=draft?{status:'DRAFT',reasons:[],rulesVerified:false}:names.error?{status:'PENDING',reasons:['회원 이름 확인 실패 · 운영진 확인 필요'],rulesVerified:false}:reviewContent([prefix,title].filter(Boolean).join(' '),content,names.data??[]);
   let result;
-  if(kind==='post')result=await admin.rpc('store_moderated_post',{p_user:user.id,p_board:board,p_title:title.trim(),p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_id:input.editId??null,p_prefix:prefix,p_rules_verified:review.rulesVerified});
+  if(input.editId&&kind!=='post')result=await admin.rpc('edit_moderated_content',{p_kind:kind,p_user:user.id,p_id:input.editId,p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified,p_expected_updated_at:input.expectedUpdatedAt,p_title:kind==='suggestion'?title.trim():null,p_category:input.category??null,p_visibility:input.visibility??null});
+  else if(kind==='post')result=await admin.rpc('store_moderated_post',{p_user:user.id,p_board:board,p_title:title.trim(),p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_id:input.editId??null,p_prefix:prefix,p_rules_verified:review.rulesVerified});
   else if(kind==='comment')result=await admin.rpc('store_moderated_comment',{p_user:user.id,p_post:input.postId,p_content:content.trim(),p_parent:input.parentId??null,p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
   else if(kind==='suggestion')result=await admin.rpc('store_moderated_suggestion',{p_user:user.id,p_title:title.trim(),p_category:input.category,p_content:content.trim(),p_visibility:input.visibility,p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
   else result=await admin.rpc('store_moderated_suggestion_reply',{p_user:user.id,p_suggestion:input.suggestionId,p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
-  if(result.error)return reply({error:'작성·수정 권한과 대상 글 상태를 확인하세요.'},400);
+  if(result.error)return reply({error:result.error.message.includes('EDIT_CONFLICT')?'다른 곳에서 내용이 바뀌었습니다. 새로고침 후 다시 수정하세요.':result.error.message.includes('PRIVATE_REPLIES_PROTECTED')?'답변이 달린 비공개 건의는 공개로 바꿀 수 없습니다. 새 공개 질문을 작성해 주세요.':'작성·수정 권한과 대상 글 상태를 확인하세요.'},400);
   return reply({id:result.data,status:review.status,reasons:review.reasons});
  }catch{return reply({error:'내용을 저장하지 못했습니다. 잠시 후 다시 시도하세요.'},500);}
 });

@@ -2,7 +2,8 @@
 import {useEffect,useState} from 'react';
 import Link,{usePathname,useRouter,useSearchParams} from './navigation';
 import {useDemo,runAction} from './demo-provider';
-import {isCouncil,isTeacher,level,canReadSuggestion,suggestionSchema} from '@/lib/domain';
+import {isCouncil,isTeacher,level,canReadSuggestion,suggestionSchema,type Suggestion} from '@/lib/domain';
+import {EditTextButton} from './edit-text';
 import {AccessDenied,EmptyState,PageHeading,StatusBadge} from './shared';
 import {Button} from './ui/button';
 import {dateTime} from '@/lib/utils';
@@ -10,26 +11,28 @@ import {useForm} from 'react-hook-form';
 import {zodResolver} from '@hookform/resolvers/zod';
 import {z} from 'zod';
 export function SuggestionsScreen({create=false,admin=false}:{create?:boolean;admin?:boolean}){
- const {state,member,createSuggestion,replySuggestion,notify,busy}=useDemo();
+ const {state,member,createSuggestion,replySuggestion,editContent,notify,busy}=useDemo();
  const router=useRouter(),path=usePathname(),params=useSearchParams();
  const [tab,setTab]=useState(path.endsWith('/mine')?'mine':admin?'manage':'public');const [reply,setReply]=useState('');
- useEffect(()=>{setTab(path.endsWith('/mine')?'mine':admin?'manage':'public');setReply('');},[path,admin]);
+ const [editing,setEditing]=useState<Suggestion|null>(null);
+ useEffect(()=>{setTab(path.endsWith('/mine')?'mine':admin?'manage':'public');setReply('');setEditing(null);},[path,admin]);
  const form=useForm<z.input<typeof suggestionSchema>,unknown,z.output<typeof suggestionSchema>>({resolver:zodResolver(suggestionSchema),defaultValues:{category:'학교 시설',title:'',content:'',visibility:'PRIVATE'}});
  if(!level(member))return <AccessDenied/>;
  const canManage=isCouncil(member)||isTeacher(member);
  const selected=state.suggestions.find(s=>s.id===params.get('id')&&canReadSuggestion(member,s));
  const visible=state.suggestions.filter(s=>canReadSuggestion(member,s)&&(tab==='mine'?s.authorId===member?.id:tab==='manage'?canManage:s.visibility==='PUBLIC'&&s.publicationStatus==='APPROVED')).sort((a,b)=>+new Date(b.date)-+new Date(a.date));
- return <><PageHeading eyebrow="학생 참여" title={create?'건의·질문 작성':'전자 건의함'} description="공개 질문과 비공개 문의를 선택할 수 있습니다. 답변은 학생회 임원이 작성합니다." action={!create&&<Button asChild><Link href="/suggestions/new">글쓰기</Link></Button>}/>
-  {create?<section className="panel form-panel"><form onSubmit={form.handleSubmit(data=>runAction(async()=>{await createSuggestion(data);router.push('/suggestions/mine');},notify))}>
+ return <><PageHeading eyebrow="학생 참여" title={editing?'건의·질문 수정':create?'건의·질문 작성':'전자 건의함'} description="공개 질문과 비공개 문의를 선택할 수 있습니다. 답변은 학생회 임원이 작성합니다." action={!create&&!editing&&<Button asChild><Link href="/suggestions/new">글쓰기</Link></Button>}/>
+  {create||editing?<section className="panel form-panel"><form onSubmit={form.handleSubmit(data=>runAction(async()=>{if(editing){await editContent('suggestion',editing.id,data.content,editing.updatedAt??editing.date,data);setEditing(null);}else{await createSuggestion(data);router.push('/suggestions/mine');}},notify))}>
    <label>공개 범위<select {...form.register('visibility')}><option value="PRIVATE">비공개 · 작성자와 운영 담당자만</option><option value="PUBLIC">공개 · 검토 후 모든 회원에게</option></select></label>
    <label>건의 분야<select {...form.register('category')}>{['학교 시설','학교 행사','학생회','급식','생활 환경','기타'].map(c=><option key={c}>{c}</option>)}</select></label>
    <label>제목<input {...form.register('title')} maxLength={100}/></label><label>건의 내용<textarea {...form.register('content')} minLength={10} maxLength={5000} rows={10}/></label>
    <p className="muted">공개 글은 규칙 검사를 통과하면 바로 표시합니다. 욕설·교사 호칭·정치 관련 표현 등 의심되는 내용은 운영진이 검토합니다. 개인정보는 적지 마세요.</p>
-   {Object.values(form.formState.errors).map((error,i)=><p className="field-error" key={i}>{error.message}</p>)}<div className="form-actions"><Button disabled={busy}>건의·질문 등록</Button></div>
+   {editing&&<p className="muted">수정 후 다시 검사합니다. 답변이 달린 비공개 질문은 공개로 전환할 수 없습니다.</p>}
+   {Object.values(form.formState.errors).map((error,i)=><p className="field-error" key={i}>{error.message}</p>)}<div className="form-actions">{editing&&<Button type="button" variant="outline" disabled={busy||form.formState.isSubmitting} onClick={()=>setEditing(null)}>수정 취소</Button>}<Button disabled={busy||form.formState.isSubmitting}>{editing?'수정 내용 저장':'건의·질문 등록'}</Button></div>
   </form></section>:<>
    <div className="filter-tabs"><button onClick={()=>setTab('public')} aria-pressed={tab==='public'}>공개 질문</button><button onClick={()=>setTab('mine')} aria-pressed={tab==='mine'}>내 질문</button>{canManage&&<button onClick={()=>setTab('manage')} aria-pressed={tab==='manage'}>학생회 확인 목록</button>}</div>
-   {selected&&<article className="panel article"><div className="article-category">{selected.visibility==='PUBLIC'?'공개':'비공개'} · {selected.category} <StatusBadge status={selected.status}/></div><h1>{selected.title}</h1><p className="muted">작성 {dateTime(selected.date)}</p><div className="article-body">{selected.content}</div>{selected.publicationStatus==='PENDING'&&selected.visibility==='PUBLIC'&&<div className="info-box">공개 검토 중입니다.</div>}
-    {(selected.replies??[]).map(answer=><section className="comment" key={answer.id}><strong>학생회 · {answer.author}</strong><p className="muted">{dateTime(answer.date)} · <StatusBadge status={answer.status}/></p><p className="article-body">{answer.content}</p></section>)}
+   {selected&&<article className="panel article"><div className="article-category">{selected.visibility==='PUBLIC'?'공개':'비공개'} · {selected.category} <StatusBadge status={selected.status}/></div><h1>{selected.title}</h1><p className="muted">작성 {dateTime(selected.date)}{selected.updatedAt&&selected.updatedAt!==selected.date&&<> · 수정 {dateTime(selected.updatedAt)}</>}</p>{selected.authorId===member?.id&&<Button type="button" variant="outline" size="sm" onClick={()=>{form.reset({title:selected.title,category:selected.category,content:selected.content,visibility:selected.visibility??'PRIVATE'});setEditing(structuredClone(selected));}}>건의 수정</Button>}<div className="article-body">{selected.content}</div>{selected.publicationStatus==='PENDING'&&selected.visibility==='PUBLIC'&&<div className="info-box">공개 검토 중입니다.</div>}
+    {(selected.replies??[]).filter(answer=>answer.status==='APPROVED'||answer.authorId===member?.id||level(member)>=3).map(answer=><section className="comment" key={answer.id}><strong>학생회 · {answer.author}</strong><p className="muted">작성 {dateTime(answer.date)}{answer.updatedAt&&<> · 수정 {dateTime(answer.updatedAt)}</>} · <StatusBadge status={answer.status}/></p><p className="article-body">{answer.content}</p>{answer.authorId===member?.id&&isCouncil(member)&&<EditTextButton kind="suggestion-reply" id={answer.id} content={answer.content} updatedAt={answer.updatedAt??answer.date}/>}</section>)}
     {!selected.replies?.length&&selected.reply&&<div className="info-box"><div><strong>학생회 답변</strong><p>{selected.reply}</p></div></div>}
     {isCouncil(member)&&<form onSubmit={e=>{e.preventDefault();void runAction(async()=>{await replySuggestion(selected.id,reply);setReply('');},notify);}}><label>학생회 답변<textarea required minLength={5} maxLength={3000} value={reply} onChange={e=>setReply(e.target.value)}/></label><Button disabled={busy}>답변 등록</Button></form>}
    </article>}

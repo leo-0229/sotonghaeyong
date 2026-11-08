@@ -22,6 +22,7 @@ interface DemoContextValue {
   switchMember: (id: string | null) => Promise<void>; reset: () => void;
   createPost: (input: { board: string; title: string; content: string; prefix?: string }, draft?: boolean, editId?: string) => Promise<string>;
   refreshData:()=>Promise<void>;
+  editContent:(kind:'suggestion'|'suggestion-reply'|'comment',id:string,content:string,expectedUpdatedAt:string,details?:{title:string;category:string;visibility:'PUBLIC'|'PRIVATE'})=>Promise<void>;
   createComment:(postId:string,content:string,parentId?:string)=>Promise<void>;
   toggleHeart:(kind:'post'|'comment',id:string)=>Promise<void>;
   deleteContent:(kind:'post'|'comment',id:string,reason?:string)=>Promise<void>;
@@ -212,6 +213,37 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'comment',postId,content,parentId}});if(error)throw new Error('댓글을 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'댓글이 공개되었습니다.':'댓글 승인을 요청했습니다.');}finally{setBusy(false);}return;}
     await commit((s,m)=>{const post=s.posts.find(p=>p.id===postId);if(!post||post.status!=='APPROVED')throw new Error('공개된 글에 댓글을 작성하세요.');return {...s,posts:s.posts.map(p=>p.id===postId?{...p,comments:[...p.comments,{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:publicationStatus(localModeration('',content)),parentId,moderationReasons:localModeration('',content)}]}:p)};});notify(publicationStatus(localModeration('',content))==='APPROVED'?'댓글이 공개되었습니다.':'댓글 승인을 요청했습니다.');
   }
+  async function editContent(kind:'suggestion'|'suggestion-reply'|'comment',id:string,content:string,expectedUpdatedAt:string,details?:{title:string;category:string;visibility:'PUBLIC'|'PRIVATE'}){
+    const text=content.trim();const min=kind==='comment'?2:kind==='suggestion-reply'?5:10;const max=kind==='comment'?2000:kind==='suggestion-reply'?3000:5000;
+    if(text.length<min||text.length>max)throw new Error(`내용은 ${min}~${max}자로 입력하세요.`);
+    if(kind==='suggestion')suggestionSchema.parse({...details,content:text});
+    const parentPost=ref.current.posts.find(p=>p.comments.some(c=>c.id===id));
+    const parentQuestion=ref.current.suggestions.find(s=>s.replies?.some(r=>r.id===id));
+    if(supabase){setBusy(true);try{
+      const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind,editId:id,expectedUpdatedAt,content:text,...details,postId:parentPost?.id,suggestionId:parentQuestion?.id}});
+      if(error){let message='내용을 수정하지 못했습니다. 권한과 최신 상태를 확인하세요.';try{const body=await error.context?.json();if(body?.error)message=body.error;}catch{}throw new Error(message);}
+      await refresh();notify(data.status==='APPROVED'?'수정 내용을 저장했습니다.':'수정 내용을 승인 대기로 저장했습니다.');
+    }finally{setBusy(false);}return;}
+    await commit((s,m)=>{
+      const question=s.suggestions.find(q=>q.id===id);
+      const answer=s.suggestions.flatMap(q=>q.replies??[]).find(r=>r.id===id);
+      const comment=s.posts.flatMap(p=>p.comments).find(c=>c.id===id);
+      const target=kind==='suggestion'?question:kind==='suggestion-reply'?answer:comment;
+      if(!target||target.authorId!==m.id)throw new Error('본인이 작성한 내용만 수정할 수 있습니다.');
+      if((target.updatedAt??target.date)!==expectedUpdatedAt)throw new Error('다른 곳에서 내용이 바뀌었습니다. 새로고침 후 다시 수정하세요.');
+      if(kind==='suggestion-reply'&&!isCouncil(m))throw new Error('학생회 임원만 본인 답변을 수정할 수 있습니다.');
+      if(kind==='comment'&&!s.posts.some(p=>p.status==='APPROVED'&&p.comments.some(c=>c.id===id)))throw new Error('공개된 글의 댓글만 수정할 수 있습니다.');
+      if(kind==='suggestion'&&question?.visibility==='PRIVATE'&&details?.visibility==='PUBLIC'&&(question.replies?.length||question.reply))throw new Error('답변이 달린 비공개 건의는 공개로 바꿀 수 없습니다. 새 공개 질문을 작성해 주세요.');
+      const reasons=inspectContent(details?.title??'',text);const status=publicationStatus(reasons);const updatedAt=stamp();
+      if(kind==='comment')return {...s,posts:s.posts.map(p=>({...p,comments:p.comments.map(c=>c.id===id?{...c,content:text,status,moderationReasons:reasons,updatedAt}:c)}))};
+      return {...s,suggestions:s.suggestions.map(q=>{
+        if(kind==='suggestion'&&q.id===id)return {...q,...details,content:text,publicationStatus:status,moderationReasons:reasons,updatedAt};
+        if(kind!=='suggestion-reply'||!q.replies?.some(r=>r.id===id))return q;
+        const replies=q.replies.map(r=>r.id===id?{...r,content:text,status,updatedAt}:r);
+        return {...q,replies,reply:undefined,status:status==='APPROVED'?'처리 완료' as const:q.status==='처리 완료'&&!replies.some(r=>r.status==='APPROVED')?'검토 중' as const:q.status};
+      })};
+    });notify('수정 내용을 저장하고 다시 검사했습니다.');
+  }
   async function toggleHeart(kind:'post'|'comment',id:string){
     if(supabase){const {error}=await supabase.rpc('toggle_heart',{p_kind:kind,p_id:id});if(error)throw new Error('하트를 변경하지 못했습니다. 공개된 글·댓글인지 확인하세요.');await refresh();return;}
     await commit((s,m)=>({...s,posts:s.posts.map(p=>{
@@ -264,7 +296,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,createComment,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }
