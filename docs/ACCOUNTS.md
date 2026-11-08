@@ -33,7 +33,7 @@ npm.cmd run provision -- --name 담당교사 --role SUPERVISING_TEACHER
 
 교사 로그인 후 **교사 관리 → 임시 계정 발급**에서 다음을 등록합니다.
 
-- 학번: `20315` 또는 `2315` 모두 2학년 3반 15번으로 처리하고 `20315`로 정규화합니다. 현재 초안은 1~3학년·1~6반·01~99번을 지원합니다.
+- 학번: `21421`처럼 학년 1자리·반 2자리·번호 2자리의 5자리 형식으로 입력합니다. `21421`은 2학년 14반 21번이며, 현재 1~3학년·01~30반·01~99번을 지원합니다.
 - 이름: 학교에서 확인한 실제 이름.
 - 성별: 학교에서 확인한 값. 동성 1:1 멘토링에 사용합니다.
 - 등급: 일반 학생을 기본으로 LEVEL 1~4 선택. 반장·부반장은 직책도 지정합니다.
@@ -43,7 +43,7 @@ npm.cmd run provision -- --name 담당교사 --role SUPERVISING_TEACHER
 필요하면 운영자 CLI로도 발급할 수 있습니다.
 
 ```powershell
-npm.cmd run provision -- --student-id 20315 --name 가상학생 --gender FEMALE
+npm.cmd run provision -- --student-id 21421 --name 가상학생 --gender FEMALE
 npm.cmd run provision -- --student-id 30105 --name 가상임원 --gender MALE --role COUNCIL_OFFICER
 npm.cmd run provision -- --student-id 20301 --name 가상반장 --gender FEMALE --role CLASS_OFFICER --position CLASS_PRESIDENT
 ```

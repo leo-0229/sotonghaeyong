@@ -2,9 +2,9 @@ export const LOGIN_DOMAIN='accounts.mpms.invalid';
 export function normalizeLoginId(value:string){return value.trim().toLowerCase();}
 export function authEmail(value:string){return `${normalizeLoginId(value)}@${LOGIN_DOMAIN}`;}
 export function parseStudentId(value:string){
- const match=/^([1-3])0?([1-6])(\d{2})$/.exec(value.trim());
- if(!match||Number(match[3])<1)throw new Error('학번은 20315 또는 2315처럼 학년·반·두 자리 번호로 입력해 주세요.');
- return {studentId:`${match[1]}0${match[2]}${match[3]}`,classId:`${match[1]}-${match[2]}`,grade:Number(match[1]),room:Number(match[2]),number:Number(match[3])};
+ const match=/^([1-3])(0[1-9]|[12]\d|30)(0[1-9]|[1-9]\d)$/.exec(value.trim());
+ if(!match)throw new Error('학번은 21421처럼 학년 1자리·반 2자리·번호 2자리로 입력해 주세요.');
+ return {studentId:value.trim(),classId:`${match[1]}-${Number(match[2])}`,grade:Number(match[1]),room:Number(match[2]),number:Number(match[3])};
 }
 export function validateCredentials(oldId:string,newId:string,currentPassword:string,newPassword:string){
  const id=normalizeLoginId(newId);
