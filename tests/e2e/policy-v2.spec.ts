@@ -40,16 +40,19 @@ test('L5 can issue several accounts at the same level',async({page})=>{
 });
 
 test('L5 account actions require name confirmation and protect self',async({page})=>{
+ await page.getByText('아이디·비밀번호를 잊었나요?',{exact:true}).click();
+ await expect(page.getByText('학교의 L5 담당자에게 계정 분실을 알려 주세요. 기존 비밀번호를 보내지 마세요.',{exact:true})).toBeVisible();
  await choose(page,'담당 교사');await go(page,'/admin/members');
  await expect(page.getByRole('row').filter({hasText:'담당 선생님'}).getByRole('button',{name:'계정 삭제',exact:true})).toHaveCount(0);
  const row=page.getByRole('row').filter({hasText:'이서연'});
- await row.getByRole('button',{name:'로그인 정보 재발급',exact:true}).click();
- let dialog=page.getByRole('dialog',{name:'이서연 로그인 정보 재발급 확인'});
- await expect(dialog.getByRole('button',{name:'재발급 확정'})).toBeDisabled();
+ await row.getByRole('button',{name:'비밀번호 초기화',exact:true}).click();
+ let dialog=page.getByRole('dialog',{name:'이서연 비밀번호 초기화 확인'});
+ await expect(dialog.getByRole('button',{name:'초기화 확정'})).toBeDisabled();
  await dialog.getByLabel('확인할 회원 이름').fill('다른이름');await dialog.getByRole('checkbox').check();
- await expect(dialog.getByRole('button',{name:'재발급 확정'})).toBeDisabled();
- await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('button',{name:'재발급 확정'}).click();
+ await expect(dialog.getByRole('button',{name:'초기화 확정'})).toBeDisabled();
+ await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('button',{name:'초기화 확정'}).click();
  await expect(row).toContainText('첫 로그인 변경 대기');
+ await expect(row.getByRole('link',{name:'새 임시 아이디·비밀번호 확인',exact:true})).toBeVisible();
  await row.getByRole('button',{name:'계정 삭제',exact:true}).click();
  dialog=page.getByRole('dialog',{name:'이서연 계정 삭제 확인'});
  await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('checkbox').check();
@@ -94,7 +97,7 @@ test('L4 can register and delete members without L5 recovery access',async({page
  await expect(page.locator('.issued-credentials')).toContainText('공통권한학생');
  await go(page,'/admin/members');
  const row=page.getByRole('row').filter({hasText:'공통권한학생'});
- await expect(row.getByRole('button',{name:'로그인 정보 재발급',exact:true})).toHaveCount(0);
+ await expect(row.getByRole('button',{name:'비밀번호 초기화',exact:true})).toHaveCount(0);
  await row.getByRole('button',{name:'계정 삭제',exact:true}).click();
  const dialog=page.getByRole('dialog',{name:'공통권한학생 계정 삭제 확인'});
  await dialog.getByLabel('확인할 회원 이름').fill('공통권한학생');await dialog.getByRole('checkbox').check();
