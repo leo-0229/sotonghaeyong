@@ -55,3 +55,30 @@ test('L5 account actions require name confirmation and protect self',async({page
  await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('checkbox').check();
  await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(row).toHaveCount(0);
 });
+
+test('L5 filters member lists by class and numeric level together',async({page})=>{
+ await choose(page,'담당 교사');
+ for(const route of ['/admin/members','/admin/roles']){
+  await go(page,route);
+  const classFilter=page.getByRole('combobox',{name:'학급별 보기',exact:true});
+  const levelFilter=page.getByRole('combobox',{name:'등급별 보기',exact:true});
+  await levelFilter.selectOption('4');
+  await expect(page.locator('tbody tr')).toHaveCount(2);
+  await expect(page.locator('tbody')).toContainText('학생회 회장단');
+  await expect(page.locator('tbody')).toContainText('대외홍보부 부장');
+  await classFilter.selectOption('2-3');
+  await levelFilter.selectOption('1');
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody')).toContainText('이서연');
+  await levelFilter.selectOption('5');
+  await expect(page.getByRole('heading',{name:'조건에 맞는 회원이 없습니다'})).toBeVisible();
+  await classFilter.selectOption('none');
+  await expect(page.locator('tbody tr')).toHaveCount(1);
+  await expect(page.locator('tbody')).toContainText('담당 선생님');
+  await page.getByRole('button',{name:'필터 초기화'}).click();
+  await expect(classFilter).toHaveValue('all');await expect(levelFilter).toHaveValue('all');
+  await expect(page.locator('tbody tr')).toHaveCount(8);
+  await page.setViewportSize({width:390,height:844});
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ }
+});
