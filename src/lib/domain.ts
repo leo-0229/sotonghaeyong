@@ -5,7 +5,7 @@ export type Role = 'STUDENT' | 'CLASS_OFFICER' | 'COUNCIL_OFFICER' | 'COUNCIL_EX
 export const ROLE_INFO: Record<Role, { level: number; label: string }> = {
   STUDENT: { level: 1, label: '일반 학생' }, CLASS_OFFICER: { level: 2, label: '학급 대표' },
   COUNCIL_OFFICER: { level: 3, label: '학생회 임원' }, COUNCIL_EXECUTIVE: { level: 4, label: '학생회 회장단' },
-  PR_DIRECTOR: { level: 4, label: '대외홍보부 부장' }, SUPERVISING_TEACHER: { level: 5, label: '담당 교사' },
+  PR_DIRECTOR: { level: 4, label: '정보통신부 부장' }, SUPERVISING_TEACHER: { level: 5, label: '담당 교사' },
 };
 export type MemberStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'SUSPENDED' | 'WITHDRAWN';
 export interface Member { id: string; name: string; role: Role; classId: string; gender?: 'MALE' | 'FEMALE'; studentId?: string; loginId?: string; mustChangeCredentials?: boolean; credentialVersion?: number; position?: 'CLASS_PRESIDENT' | 'CLASS_VICE_PRESIDENT'; status: MemberStatus }

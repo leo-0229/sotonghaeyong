@@ -15,6 +15,7 @@ supabase/migrations/202611080005_five_digit_student_ids.sql
 supabase/migrations/202611080006_two_pilot_administrators.sql
 supabase/migrations/202611080007_reusable_temporary_accounts.sql
 supabase/migrations/202611080008_account_recovery_and_deletion.sql
+supabase/migrations/202611080009_l4_information_department.sql
 ```
 
 002는 기존 학급 제출의 보완·접수 확정 상태를 `SUBMITTED`로 바꿉니다. 이전 과목별 멘토링 테이블은 이력 기반으로 남지만 새 화면은 `school_life_mentoring`을 사용합니다. 운영 이력이 있다면 먼저 백업과 기존 매칭 검토가 필요합니다.

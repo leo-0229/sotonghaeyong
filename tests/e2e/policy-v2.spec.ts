@@ -65,7 +65,7 @@ test('L5 filters member lists by class and numeric level together',async({page})
   await levelFilter.selectOption('4');
   await expect(page.locator('tbody tr')).toHaveCount(2);
   await expect(page.locator('tbody')).toContainText('학생회 회장단');
-  await expect(page.locator('tbody')).toContainText('대외홍보부 부장');
+  await expect(page.locator('tbody')).toContainText('정보통신부 부장');
   await classFilter.selectOption('2-3');
   await levelFilter.selectOption('1');
   await expect(page.locator('tbody tr')).toHaveCount(1);
