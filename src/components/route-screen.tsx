@@ -13,6 +13,7 @@ import { ModerationSettings } from './moderation-settings';
 import { CredentialSetup } from './credential-setup';
 import {CouncilChannel} from './council-channel';
 import { IssueAccountScreen } from './issue-account';
+import { GuideScreen } from './guide';
 
 export function RouteScreen({ segments }: { segments: string[] }) {
   const { ready, member } = useDemo();
@@ -20,6 +21,7 @@ export function RouteScreen({ segments }: { segments: string[] }) {
   if (!ready) return <div className="loading" role="status"><span className="loading-dot"/>소통해용을 불러오는 중입니다…</div>;
   if (member?.status==='ACTIVE' && member.mustChangeCredentials) return <CredentialSetup/>;
   if (!level(member)) return <LoginScreen/>;
+  if (route === 'guide' || route === 'about') return <GuideScreen/>;
   if (!route || route === 'home') return <HomeScreen/>;
   if (route === 'login') return <LoginScreen/>;
   if (area === 'register') return <RegisterScreen status={id === 'status'}/>;

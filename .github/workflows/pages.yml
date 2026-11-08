@@ -34,6 +34,7 @@ jobs:
       - uses: actions/configure-pages@v5
         id: pages
       - run: npm ci
+      - run: npm run docs:check
       - run: npm run audit:release -- --source
       - run: npm test
       - name: Check public backend configuration

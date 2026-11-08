@@ -7,6 +7,8 @@
   "type": "module",
   "engines": { "node": ">=22.0.0" },
   "scripts": {
+    "docs:generate": "node scripts/generate-guide.mjs",
+    "docs:check": "node scripts/generate-guide.mjs --check",
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "node scripts/serve.mjs",
