@@ -133,3 +133,11 @@ test('clean posts publish immediately and flagged edits return to review',async(
  await go(page,'/boards');await expect(page.getByRole('link',{name:/자동 공개되는 학교 이야기/})).toBeVisible();await page.getByRole('link',{name:/자동 공개되는 학교 이야기/}).click();await page.getByRole('link',{name:'글·말머리 수정'}).click();await page.getByLabel('내용',{exact:true}).fill('쌤과 도서관에서 함께 책을 읽었습니다.');await page.getByRole('button',{name:'수정 내용 저장',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();
  await choose(page,'학급 대표 · 반장');await go(page,'/boards');await expect(page.getByRole('link',{name:/자동 공개되는 학교 이야기/})).toHaveCount(0);
 });
+
+test('political names in posts and comments wait for moderation',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('김현지 관련 질문입니다');await page.getByLabel('내용',{exact:true}).fill('문서에서 읽은 이름에 관해 질문하는 게시글입니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.getByText('정치·이념·정치인 관련 표현 · 운영진 확인 필요',{exact:true})).toBeVisible();
+ await choose(page,'학급 대표 · 반장');await go(page,'/boards');await expect(page.getByRole('link',{name:/김현지 관련 질문입니다/})).toHaveCount(0);
+ await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('트럼프 관련 내용을 이야기합니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();
+ await choose(page,'일반 학생');await go(page,'/posts/post-4');await expect(page.getByText('트럼프 관련 내용을 이야기합니다.',{exact:true})).toHaveCount(0);
+ await choose(page,'학생회 임원');await go(page,'/admin/posts');await expect(page.locator('.post-review').filter({hasText:'김현지 관련 질문입니다'})).toBeVisible();await expect(page.locator('.comment-review').filter({hasText:'트럼프 관련 내용을 이야기합니다.'})).toBeVisible();
+});

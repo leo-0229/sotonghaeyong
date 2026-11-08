@@ -1,4 +1,5 @@
 import {ABUSIVE_TERMS,SEXUAL_TERMS,ABUSIVE_INITIALS} from './content-rules.ts';
+import {POLITICAL_REVIEW_TERMS} from './political-rules.ts';
 
 const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
@@ -21,6 +22,7 @@ function jamo(value:string,keyboard=false){
 }
 const profanity=ABUSIVE_TERMS.map(term=>jamo(term)).filter(Boolean);
 const sexual=SEXUAL_TERMS.map(term=>jamo(term)).filter(Boolean);
+const political=POLITICAL_REVIEW_TERMS.map(term=>jamo(term)).filter(Boolean);
 const initials=ABUSIVE_INITIALS.map(term=>jamo(term)).filter(Boolean);
 const allowedInitials=new Set(['ㄱㅅ','ㄱㄱ','ㄴㄴ','ㅇㅇ','ㅇㅋ','ㅇㅈ','ㅊㅋ','ㅊㅊ','ㅈㅅ','ㄹㅇ','ㅎㅇ','ㅂㅂ','ㅂㅇ'].map(term=>jamo(term)));
 
@@ -37,6 +39,13 @@ export function localModeration(title:string,content:string,_teacherNames:string
  const text=fields.join('\n');
  const teacherTerms=['쌤','썜','선생','교사'].map(term=>jamo(term));
  if(versions.some(value=>teacherTerms.some(term=>value.includes(term))))reasons.push('교사 호칭 포함 · 운영진 확인 필요');
+ // Avoid treating the everyday verb 지나치다 as the organization name 나치.
+ // Keep title/body separate and retain the shared spacing/jamo/keyboard defenses.
+ const politicalVersions=fields.flatMap(field=>{
+  const ordinary=field.replace(/지나[치친칠침칩](?=[가-힣]|\s|[.!?]|$)/gu,'과도하');
+  return [jamo(ordinary),jamo(ordinary,true)];
+ });
+ if(politicalVersions.some(value=>political.some(term=>value.includes(term)))||/(?:^|[^a-z])(?:trump|biden|obama|putin|hitler|mussolini|nazis?|nazism|fascis[mt]|populism|feminism|communism)(?=$|[^a-z])/iu.test(text))reasons.push('정치·이념·정치인 관련 표현 · 운영진 확인 필요');
  const rawRuns=(title+'\n'+content).normalize('NFC').match(/[ㄱ-ㅎㅏ-ㅣ\u1100-\u11ff]+/gu)??[];
  if(versions.some(value=>profanity.some(term=>value.includes(term)))||rawRuns.some(run=>initials.some(term=>jamo(run).includes(term)))||/(?:^|[^a-z])(?:f[\W\d_]*u[\W\d_]*c[\W\d_]*k(?:ing|er|you)?|s[\W\d_]*h[\W\d_]*i[\W\d_]*t|bitch|asshole|motherfucker|cunt|slut|whore|retard(?:ed)?|nigg(?:er|a)|faggot)(?=$|[^a-z])/iu.test(text))reasons.push('욕설·혐오 의심 표현');
  if(versions.some(value=>sexual.some(term=>value.includes(term)))||/(?:^|[^a-z])(?:s[\W\d_]*e[\W\d_]*x|p[\W\d_]*o[\W\d_]*r[\W\d_]*n(?:ography)?|hentai|penis|vagina|masturbat\w*|blowjob|pussy|dick|nudes?)(?=$|[^a-z])/iu.test(text))reasons.push('성적·성 관련 민감 표현');

@@ -24,7 +24,7 @@ export function SuggestionsScreen({create=false,admin=false}:{create?:boolean;ad
    <label>공개 범위<select {...form.register('visibility')}><option value="PRIVATE">비공개 · 작성자와 운영 담당자만</option><option value="PUBLIC">공개 · 검토 후 모든 회원에게</option></select></label>
    <label>건의 분야<select {...form.register('category')}>{['학교 시설','학교 행사','학생회','급식','생활 환경','기타'].map(c=><option key={c}>{c}</option>)}</select></label>
    <label>제목<input {...form.register('title')} maxLength={100}/></label><label>건의 내용<textarea {...form.register('content')} minLength={10} maxLength={5000} rows={10}/></label>
-   <p className="muted">공개 글은 규칙 검사를 통과하면 바로 표시합니다. 욕설·교사 호칭 등 의심되는 내용은 운영진이 검토합니다. 개인정보는 적지 마세요.</p>
+   <p className="muted">공개 글은 규칙 검사를 통과하면 바로 표시합니다. 욕설·교사 호칭·정치 관련 표현 등 의심되는 내용은 운영진이 검토합니다. 개인정보는 적지 마세요.</p>
    {Object.values(form.formState.errors).map((error,i)=><p className="field-error" key={i}>{error.message}</p>)}<div className="form-actions"><Button disabled={busy}>건의·질문 등록</Button></div>
   </form></section>:<>
    <div className="filter-tabs"><button onClick={()=>setTab('public')} aria-pressed={tab==='public'}>공개 질문</button><button onClick={()=>setTab('mine')} aria-pressed={tab==='mine'}>내 질문</button>{canManage&&<button onClick={()=>setTab('manage')} aria-pressed={tab==='manage'}>학생회 확인 목록</button>}</div>
