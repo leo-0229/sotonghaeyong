@@ -11,11 +11,14 @@ export function validateCredentials(oldId:string,newId:string,currentPassword:st
  if(!/^[a-z][a-z0-9_]{3,23}$/.test(id)||id.startsWith('tmp_'))throw new Error('새 아이디는 영문 소문자로 시작하는 4~24자 영문·숫자·밑줄로 입력하세요. tmp_는 임시 계정 전용입니다.');
  if(id===normalizeLoginId(oldId))throw new Error('임시 아이디와 다른 새 아이디를 입력해 주세요.');
  if(!currentPassword)throw new Error('현재 비밀번호를 입력해 주세요.');
- if(newPassword.length<12||newPassword.length>128)throw new Error('새 비밀번호는 12~128자로 입력해 주세요.');
+ if(newPassword.length<8||newPassword.length>128)throw new Error('새 비밀번호는 8~128자로 입력해 주세요.');
  if(newPassword===currentPassword)throw new Error('기존 비밀번호와 다른 비밀번호를 사용해 주세요.');
  return id;
 }
 export function temporaryCredentials(){
  const bytes=crypto.getRandomValues(new Uint8Array(20));const hex=Array.from(bytes,n=>n.toString(16).padStart(2,'0')).join('');
- return {loginId:`tmp_${hex.slice(0,16)}`,password:`Aa1!${hex.slice(16)}`};
+ const alphabet='abcdefghjkmnpqrstuvwxyz23456789';
+ let password='';
+ while(password.length<10){const values=crypto.getRandomValues(new Uint8Array(16));for(const value of values){if(value<alphabet.length*8&&password.length<10)password+=alphabet[value%alphabet.length];}}
+ return {loginId:`tmp_${hex.slice(0,16)}`,password};
 }
