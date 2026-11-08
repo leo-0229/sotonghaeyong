@@ -2,7 +2,7 @@
 import {useEffect,useState} from 'react';
 import {Copy,KeyRound,UserPlus} from 'lucide-react';
 import {useDemo,runAction} from './demo-provider';
-import {isTeacher,ROLE_INFO,type Role} from '@/lib/domain';
+import {isTeacher,level,ROLE_INFO,type Role} from '@/lib/domain';
 import {supabase} from '@/lib/supabase/browser';
 import {AccessDenied,PageHeading} from './shared';
 import {Button} from './ui/button';
@@ -15,9 +15,17 @@ export function IssueAccountScreen(){
  const [issuing,setIssuing]=useState(false);
  const [revision,setRevision]=useState(0);
  const [issued,setIssued]=useState<TemporaryAccount|null>(null);
- if(!isTeacher(member))return <AccessDenied/>;
+ useEffect(()=>{
+  if(!issued||mode!=='supabase')return;
+  let active=true;
+  async function check(){const {data,error}=await supabase!.rpc('account_directory');if(active&&(error||!data?.some((entry:{loginId:string;mustChangeCredentials:boolean})=>entry.loginId===issued!.loginId&&entry.mustChangeCredentials)))setIssued(null);}
+  const timer=setInterval(()=>void check(),15000);
+  const hide=()=>{if(document.hidden)setIssued(null);};document.addEventListener('visibilitychange',hide);
+  return ()=>{active=false;clearInterval(timer);document.removeEventListener('visibilitychange',hide);};
+ },[issued,mode]);
+ if(level(member)<4)return <AccessDenied/>;
  return <>
-  <PageHeading eyebrow="L5 관리자" title="임시 계정 발급" description="등급별 인원 제한 없이 발급합니다. 계정 발급과 임시 로그인 정보 확인은 L5만 가능합니다."/>
+  <PageHeading eyebrow="L4 · L5 회원 관리" title="임시 계정 발급" description="등급별 인원 제한 없이 발급합니다. 회원 등록은 L4 이상, 임시 로그인 정보 재조회는 L5만 가능합니다."/>
   <section className="panel form-panel">
    <div className="info-box"><KeyRound size={20}/><div><strong>첫 로그인 후 아이디와 비밀번호를 변경합니다.</strong><p>최초 설정 전에는 L5가 임시 로그인 정보를 다시 확인할 수 있습니다. 설정을 마치면 보관된 임시 비밀번호가 삭제됩니다.</p></div></div>
    {mode==='demo'&&<p className="muted">로컬 체험에서는 이번 화면에서 발급한 정보만 표시합니다. 실제 학생 정보를 입력하지 마세요.</p>}
@@ -26,7 +34,7 @@ export function IssueAccountScreen(){
     setIssuing(true);setIssued(null);
     void runAction(async()=>{try{
      const result=await issueAccount({studentId:String(data.get('studentId')??''),name:String(data.get('name')),gender:String(data.get('gender')??'') as 'MALE'|'FEMALE',role,position:role==='CLASS_OFFICER'?String(data.get('position')):undefined});
-     if(mode==='demo')setIssued(result);
+     if(mode==='demo'||!isTeacher(member))setIssued(result);
      setRevision(v=>v+1);form.reset();notify('계정을 발급했습니다. 임시 로그인 정보를 해당 회원에게 개별 전달하세요.');
     }finally{setIssuing(false);}},notify);
    }}>
@@ -34,13 +42,13 @@ export function IssueAccountScreen(){
      {role!=='SUPERVISING_TEACHER'&&<label>학번<input name="studentId" required inputMode="numeric" maxLength={5} minLength={5} pattern="[1-3][0-9]{4}" placeholder="예: 20315" autoComplete="off"/></label>}
      <label>이름<input name="name" required minLength={2} maxLength={30} autoComplete="off"/></label>
      {role!=='SUPERVISING_TEACHER'&&<label>성별<select name="gender" required><option value="">학교 확인 정보 선택</option><option value="MALE">남학생</option><option value="FEMALE">여학생</option></select></label>}
-     <label>회원 등급<select value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(ROLE_INFO).map(([code,r])=><option key={code} value={code}>L{r.level} {r.label}</option>)}</select></label>
+     <label>회원 등급<select value={role} onChange={e=>setRole(e.target.value as Role)}>{Object.entries(ROLE_INFO).filter(([code])=>isTeacher(member)||code!=='SUPERVISING_TEACHER').map(([code,r])=><option key={code} value={code}>L{r.level} {r.label}</option>)}</select></label>
      {role==='CLASS_OFFICER'&&<label>학급 직책<select name="position"><option value="CLASS_PRESIDENT">반장</option><option value="CLASS_VICE_PRESIDENT">부반장</option></select></label>}
     </div>
     <div className="form-actions"><Button disabled={busy||issuing}><UserPlus size={15}/>{issuing?'발급 중…':'임시 계정 발급'}</Button></div>
    </form>
   </section>
-  {mode==='supabase'?<TemporaryDirectory key={member!.id} revision={revision}/>:issued&&<CredentialCard account={issued}/>}
+  {mode==='supabase'&&isTeacher(member)?<TemporaryDirectory key={member!.id} revision={revision}/>:issued&&<><p className="muted">발급 직후 한 번 표시합니다. 화면을 떠나기 전에 해당 회원에게 전달하세요. 재조회가 필요하면 L5에게 요청하세요.</p><CredentialCard account={issued}/></>}
  </>;
 }
 

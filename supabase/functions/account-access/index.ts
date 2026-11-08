@@ -16,9 +16,9 @@ Deno.serve(async(req:Request)=>{
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
   if(input.operation==='reissue'||input.operation==='delete'){
    const {data:lvl,error:permissionError}=await caller.rpc('current_level');
-   if(permissionError||lvl!==5)return reply({error:'L5 관리자만 계정을 재발급하거나 삭제할 수 있습니다.'},403);
+   if(permissionError||lvl<4||(input.operation==='reissue'&&lvl!==5))return reply({error:'삭제는 L4 이상, 재발급은 L5만 가능합니다.'},403);
    if(typeof input.userId!=='string'||!/^[a-f0-9-]{36}$/i.test(input.userId)||typeof input.confirmName!=='string')return reply({error:'대상 회원과 확인 이름을 입력하세요.'},400);
-   if(input.userId===user.id)return reply({error:'본인 계정은 재발급하거나 삭제할 수 없습니다. 다른 L5에게 요청하세요.'},403);
+   if(input.userId===user.id)return reply({error:'본인 계정은 재발급하거나 삭제할 수 없습니다. 다른 관리자에게 요청하세요.'},403);
    const {error:rate}=await admin.rpc('reserve_account_request',{p_user:user.id,p_operation:'issue'});
    if(rate)return reply({error:'요청이 많습니다. 잠시 후 다시 시도하세요.'},429);
    const {data:target,error:targetError}=await admin.auth.admin.getUserById(input.userId);
@@ -29,7 +29,7 @@ Deno.serve(async(req:Request)=>{
    if(beginError)return reply({error:'이름이 일치하는지, 대상이 이용 가능한 계정인지 확인하세요. 본인 계정과 마지막 L5는 처리할 수 없습니다.'},409);
    if(input.operation==='delete'){
     const {error}=await admin.auth.admin.deleteUser(input.userId);
-    if(error)return reply({error:'계정 이용은 차단했지만 삭제를 끝내지 못했습니다. L5가 삭제를 다시 시도하세요.'},503);
+    if(error)return reply({error:'계정 이용은 차단했지만 삭제를 끝내지 못했습니다. 다른 관리자가 삭제를 다시 시도하세요.'},503);
     return reply({deleted:true});
    }
    const {error:updateError}=await admin.auth.admin.updateUserById(input.userId,{email:authEmail(credentials!.loginId),email_confirm:true,password:credentials!.password,app_metadata:{...target.user.app_metadata,credential_version:job.credentialVersion,maintenance_id:job.operationId}});
@@ -47,9 +47,9 @@ Deno.serve(async(req:Request)=>{
    return reply({accounts});
   }
   if(input.operation==='issue'){
-   const {data:lvl,error:permissionError}=await caller.rpc('current_level');if(permissionError||lvl!==5)return reply({error:'담당 교사만 임시 계정을 발급할 수 있습니다.'},403);
+   const {data:lvl,error:permissionError}=await caller.rpc('current_level');if(permissionError||lvl<4)return reply({error:'L4 이상만 계정을 발급할 수 있습니다.'},403);
    if(typeof input.name!=='string'||input.name.trim().length<2||input.name.trim().length>30||(input.role!=='SUPERVISING_TEACHER'&&(!['MALE','FEMALE'].includes(input.gender)||typeof input.studentId!=='string')))return reply({error:'학번·이름·성별을 확인해 주세요.'},400);
-   const role=input.role??'STUDENT';const student=role==='SUPERVISING_TEACHER'?null:parseStudentId(input.studentId);
+   const role=input.role??'STUDENT';if(role==='SUPERVISING_TEACHER'&&lvl!==5)return reply({error:'L5 계정은 L5만 발급할 수 있습니다.'},403);const student=role==='SUPERVISING_TEACHER'?null:parseStudentId(input.studentId);
    if(!['STUDENT','CLASS_OFFICER','COUNCIL_OFFICER','COUNCIL_EXECUTIVE','PR_DIRECTOR','SUPERVISING_TEACHER'].includes(role))return reply({error:'허용되지 않은 등급입니다.'},400);
    const {error:rate}=await admin.rpc('reserve_account_request',{p_user:user.id,p_operation:'issue'});if(rate)return reply({error:'발급 요청이 많습니다. 잠시 후 다시 시도해 주세요.'},429);
    const credentials=temporaryCredentials();

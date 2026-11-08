@@ -17,7 +17,8 @@ const groups: { title: string; min?: number; items: [string, string, LucideIcon,
   { title: '학급 대표 업무', min: 2, items: [['진행 중인 업무', '/class-tasks', ClipboardList, '3'], ['제출 내역', '/class-tasks/my-submissions', CheckCheck], ['마감 일정', '/class-tasks/deadlines', CalendarDays]] },
   { title: '내 활동', items: [['내가 쓴 글 · 승인 대기', '/mypage', PenLine], ['내 건의 내역', '/suggestions/mine', Mail], ['알림', '/notifications', Bell]] },
   { title: '운영진 관리', min: 3, items: [['관리자 대시보드', '/admin', LayoutDashboard], ['게시글 승인', '/admin/posts', ShieldCheck], ['학급별 제출 관리', '/admin/class-tasks', ClipboardList], ['건의함 관리', '/admin/suggestions', Mail]] },
-  { title: '교사 관리', min: 5, items: [['회원 · 계정 관리', '/admin/members', Users], ['임시 계정 발급', '/admin/accounts', KeyRound], ['등급 관리', '/admin/roles', ShieldCheck], ['관리자 활동 기록', '/admin/logs', FileText], ['검토 보조 설정', '/admin/settings', ShieldCheck]] },
+  { title: '회원 관리', min: 4, items: [['회원 · 계정 관리', '/admin/members', Users], ['임시 계정 발급', '/admin/accounts', KeyRound]] },
+  { title: '교사 관리', min: 5, items: [['등급 관리', '/admin/roles', ShieldCheck], ['관리자 활동 기록', '/admin/logs', FileText], ['검토 보조 설정', '/admin/settings', ShieldCheck]] },
 ];
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { state, member, switchMember, toast,ready,mode,busy,notify } = useDemo();

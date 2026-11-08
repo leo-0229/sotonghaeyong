@@ -7,7 +7,7 @@ const target='60000000-0000-4000-8000-000000000001';
 beforeAll(async()=>{
  db=await createPolicyDatabase();
  await db.exec("alter table auth.users add column email text unique;alter table auth.users add column encrypted_password text;alter table auth.users add column raw_app_meta_data jsonb not null default '{}';create table auth.sessions(id uuid primary key,user_id uuid);create table auth.refresh_tokens(id text primary key,user_id text)");
- for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql','202611080005_five_digit_student_ids.sql','202611080006_two_pilot_administrators.sql','202611080007_reusable_temporary_accounts.sql','202611080008_account_recovery_and_deletion.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
+ for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql','202611080005_five_digit_student_ids.sql','202611080006_two_pilot_administrators.sql','202611080007_reusable_temporary_accounts.sql','202611080008_account_recovery_and_deletion.sql','202611080009_l4_information_department.sql','202611080010_l4_account_management.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
 });
 beforeEach(async()=>{
  await db.exec('begin');
@@ -23,6 +23,12 @@ async function start(operation='reissue',actor=ids.teacher,name='가상복구학
  return result.rows[0].data;
 }
 describe('L5 account recovery and deletion',()=>{
+ it('allows L4 to begin account deletion',async()=>{await start('delete',ids.executive);expect((await db.query('select status from public.profiles where id=$1',[target])).rows[0]).toEqual({status:'SUSPENDED'});});
+ it('rejects L3 account deletion',async()=>{await expect(start('delete',ids.officer)).rejects.toThrow('ACCOUNT_MANAGER_REQUIRED');});
+ it('protects the last L5 from deletion by L4',async()=>{await db.query("update public.user_roles set role_code='STUDENT' where user_id=$1",[ids.teacher]);await db.query("update public.user_roles set role_code='SUPERVISING_TEACHER' where user_id=$1",[target]);await expect(start('delete',ids.executive)).rejects.toThrow('LAST_L5_REQUIRED');});
+ it('allows L4 to issue student accounts',async()=>{const id='60000000-0000-4000-8000-000000000002';await db.query("insert into auth.users(id,email,raw_user_meta_data) values($1,'tmp_executiveissue@accounts.mpms.invalid','{}')",[id]);await db.query("select public.initialize_provisioned_account($1,'가상발급학생','21422','MALE','STUDENT',null,$2)",[id,ids.executive]);});
+ it('does not let L4 grant itself access to L5-only features through issuance',async()=>{const id='60000000-0000-4000-8000-000000000002';await db.query("insert into auth.users(id,email,raw_user_meta_data) values($1,'tmp_executiveissue@accounts.mpms.invalid','{}')",[id]);await expect(db.query("select public.initialize_provisioned_account($1,'가상관리자',null,null,'SUPERVISING_TEACHER',null,$2)",[id,ids.executive])).rejects.toThrow('L5_REQUIRED');});
+ it('allows L4 to read the directory and correct member roles',async()=>{await db.exec('set local role authenticated');await db.query("select set_config('request.jwt.claim.sub',$1,true)",[ids.executive]);expect((await db.query<{data:unknown[]}>('select public.account_directory() as data')).rows[0].data.length).toBeGreaterThan(1);expect((await db.query('select role_code from public.user_roles where user_id=$1',[ids.teacher])).rows[0]).toEqual({role_code:'SUPERVISING_TEACHER'});});
  it('rejects an L4 actor',async()=>{await expect(start('reissue',ids.executive)).rejects.toThrow('L5_REQUIRED');});
  it('requires the exact target name',async()=>{await expect(start('delete',ids.teacher,'다른이름')).rejects.toThrow('CONFIRM_NAME_REQUIRED');});
  it('forbids managing the current operator account',async()=>{await expect(db.query("select public.begin_managed_account_action($1,$1,'가상담당자','delete',null,null)",[ids.teacher])).rejects.toThrow('SELF_ACCOUNT_ACTION_DENIED');});

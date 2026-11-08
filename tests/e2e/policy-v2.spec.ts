@@ -82,3 +82,21 @@ test('L5 filters member lists by class and numeric level together',async({page})
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
  }
 });
+
+test('L4 can register and delete members without L5 recovery access',async({page})=>{
+ await choose(page,'학생회 회장단');await go(page,'/admin/accounts');
+ await expect(page.getByRole('heading',{name:'임시 계정 발급',exact:true})).toBeVisible();
+ await expect(page.getByRole('combobox',{name:'회원 등급'}).locator('option[value="SUPERVISING_TEACHER"]')).toHaveCount(0);
+ await expect(page.getByRole('button',{name:'임시 로그인 정보 확인',exact:true})).toHaveCount(0);
+ await page.getByLabel('학번',{exact:true}).fill('20317');await page.getByLabel('이름',{exact:true}).fill('공통권한학생');
+ await page.getByRole('combobox',{name:'성별',exact:true}).selectOption('MALE');
+ await page.getByRole('button',{name:'임시 계정 발급',exact:true}).click();
+ await expect(page.locator('.issued-credentials')).toContainText('공통권한학생');
+ await go(page,'/admin/members');
+ const row=page.getByRole('row').filter({hasText:'공통권한학생'});
+ await expect(row.getByRole('button',{name:'로그인 정보 재발급',exact:true})).toHaveCount(0);
+ await row.getByRole('button',{name:'계정 삭제',exact:true}).click();
+ const dialog=page.getByRole('dialog',{name:'공통권한학생 계정 삭제 확인'});
+ await dialog.getByLabel('확인할 회원 이름').fill('공통권한학생');await dialog.getByRole('checkbox').check();
+ await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(row).toHaveCount(0);
+});

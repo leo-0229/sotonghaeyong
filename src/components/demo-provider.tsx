@@ -52,7 +52,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     if(snapshot.error||identity.error) throw new Error('서버 데이터를 불러오지 못했습니다. 최신 SQL 마이그레이션 적용 여부를 확인해 주세요.');
     const data=snapshot.data as AppState;data.members=data.members.map(m=>m.id===user.id?{...m,...identity.data}:m);
     const own=data.members.find(m=>m.id===user.id);
-    if(own?.role==='SUPERVISING_TEACHER'&&!own.mustChangeCredentials&&own.status==='ACTIVE'){
+    if(level(own)>=4){
       const {data:directory,error}=await supabase.rpc('account_directory');if(error)throw new Error('회원 계정 정보를 불러오지 못했습니다.');
       data.members=data.members.map(m=>({...m,...directory?.find((entry:{id:string})=>entry.id===m.id)}));
     }
@@ -102,7 +102,9 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setBusy(true);try{const {error}=await supabase.auth.signInWithPassword({email:loginEmail,password});if(error) throw new Error('아이디 또는 비밀번호를 확인해 주세요.');await refresh();}finally{setBusy(false);}
   };
   async function issueAccount(input:{studentId:string;name:string;gender:'MALE'|'FEMALE';role:Role;position?:string}){
-    if(!isTeacher(ref.current.members.find(m=>m.id===ref.current.currentMemberId)))throw new Error('담당 교사만 계정을 발급할 수 있습니다.');
+    const issuer=ref.current.members.find(m=>m.id===ref.current.currentMemberId);
+    if(level(issuer)<4)throw new Error('L4 이상만 계정을 발급할 수 있습니다.');
+    if(input.role==='SUPERVISING_TEACHER'&&!isTeacher(issuer))throw new Error('L5 계정은 L5만 발급할 수 있습니다.');
     const parsed=input.role==='SUPERVISING_TEACHER'?{studentId:'',classId:''}:parseStudentId(input.studentId);if(input.name.trim().length<2||input.name.trim().length>30||(input.role!=='SUPERVISING_TEACHER'&&!['MALE','FEMALE'].includes(input.gender)))throw new Error('이름·성별·등급을 확인해 주세요.');
     if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('account-access',{body:{operation:'issue',...input,studentId:parsed.studentId}});if(error)throw new Error('발급하지 못했습니다. 학번 중복 여부와 계정 서버를 확인해 주세요.');await refresh();return data;}finally{setBusy(false);}}
     if(!demoAllowed())throw new Error('계정 서버가 설정되지 않았습니다.');
@@ -113,7 +115,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }
   async function manageAccount(userId:string,operation:'reissue'|'delete',confirmName:string){
     const actor=ref.current.members.find(m=>m.id===ref.current.currentMemberId);
-    if(!isTeacher(actor)||actor?.id===userId)throw new Error('다른 L5 계정으로 처리해 주세요.');
+    if(level(actor)<4||(operation==='reissue'&&!isTeacher(actor))||actor?.id===userId)throw new Error('계정 처리 권한을 확인해 주세요.');
     const target=ref.current.members.find(m=>m.id===userId);
     if(!target||target.name!==confirmName)throw new Error('대상 이름을 정확히 확인하세요.');
     if(supabase){

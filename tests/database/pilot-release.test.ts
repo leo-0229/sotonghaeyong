@@ -6,7 +6,7 @@ let db:PGlite;
 beforeAll(async()=>{
  db=await createPolicyDatabase();
  await db.exec("alter table auth.users add column email text unique;alter table auth.users add column encrypted_password text;alter table auth.users add column raw_app_meta_data jsonb not null default '{}'");
- for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql','202611080005_five_digit_student_ids.sql','202611080006_two_pilot_administrators.sql','202611080007_reusable_temporary_accounts.sql','202611080008_account_recovery_and_deletion.sql','202611080009_l4_information_department.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
+ for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql','202611080005_five_digit_student_ids.sql','202611080006_two_pilot_administrators.sql','202611080007_reusable_temporary_accounts.sql','202611080008_account_recovery_and_deletion.sql','202611080009_l4_information_department.sql','202611080010_l4_account_management.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
 });
 beforeEach(async()=>{await db.exec('begin');});afterEach(async()=>{await db.exec('rollback');});afterAll(async()=>{await db?.close();});
 const uuid=(n:number)=>`80000000-0000-4000-8000-${String(n).padStart(12,'0')}`;

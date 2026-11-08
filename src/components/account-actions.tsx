@@ -1,7 +1,7 @@
 'use client';
 import {useState} from 'react';
 import {useDemo,runAction} from './demo-provider';
-import {isTeacher,type Member} from '@/lib/domain';
+import {isTeacher,level,type Member} from '@/lib/domain';
 import {Button} from './ui/button';
 import Link from './navigation';
 
@@ -11,11 +11,11 @@ export function AccountActions({target}:{target:Member}){
  const [name,setName]=useState('');
  const [confirmed,setConfirmed]=useState(false);
  const [working,setWorking]=useState(false);
- if(!isTeacher(member)||target.id===member?.id)return null;
+ if(level(member)<4||target.id===member?.id)return null;
  function close(){setAction(null);setName('');setConfirmed(false);}
  return <div>
   <div className="table-buttons">
-   {target.status==='ACTIVE'&&<Button size="sm" variant="outline" disabled={working} onClick={()=>{close();setAction('reissue');}}>로그인 정보 재발급</Button>}
+   {isTeacher(member)&&target.status==='ACTIVE'&&<Button size="sm" variant="outline" disabled={working} onClick={()=>{close();setAction('reissue');}}>로그인 정보 재발급</Button>}
    <Button size="sm" variant="ghost" disabled={working} onClick={()=>{close();setAction('delete');}}>계정 삭제</Button>
   </div>
   {action&&<form className="confirm-box" role="dialog" aria-label={`${target.name} ${action==='delete'?'계정 삭제':'로그인 정보 재발급'} 확인`} onSubmit={e=>{
