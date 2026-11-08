@@ -1,4 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.119.0';
+import {sealTemporaryPassword,openTemporaryPassword} from '../_shared/temporary-vault.ts';
 import {authEmail,parseStudentId,temporaryCredentials,validateCredentials} from '../_shared/accounts.ts';
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get('origin')??'';const allowed=(Deno.env.get('ALLOWED_ORIGINS')??'').split(',').map(x=>x.trim());
@@ -13,18 +14,34 @@ Deno.serve(async(req:Request)=>{
   const {data:{user},error:authError}=await caller.auth.getUser(jwt);if(authError||!user)return reply({error:'로그인이 필요합니다.'},401);
   const raw=await req.text();if(raw.length>8000)return reply({error:'요청 크기가 너무 큽니다.'},413);const input=JSON.parse(raw);
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+  if(input.operation==='temporary-list'){
+   const {data:lvl,error:permissionError}=await caller.rpc('current_level');
+   if(permissionError||lvl!==5)return reply({error:'L5 관리자만 임시 로그인 정보를 확인할 수 있습니다.'},403);
+   const {data:rows,error}=await caller.rpc('pending_temporary_credentials');
+   if(error)return reply({error:'임시 로그인 정보를 불러오지 못했습니다.'},503);
+   const accounts=await Promise.all((rows??[]).map(async(row:{id:string;name:string;studentId:string|null;loginId:string;role:string;sealed:string})=>({id:row.id,name:row.name,studentId:row.studentId,loginId:row.loginId,role:row.role,password:await openTemporaryPassword(Deno.env.get('TEMP_CREDENTIAL_KEY')??'',row.id,row.sealed)})));
+   return reply({accounts});
+  }
   if(input.operation==='issue'){
    const {data:lvl,error:permissionError}=await caller.rpc('current_level');if(permissionError||lvl!==5)return reply({error:'담당 교사만 임시 계정을 발급할 수 있습니다.'},403);
-   if(typeof input.name!=='string'||input.name.trim().length<2||input.name.trim().length>30||!['MALE','FEMALE'].includes(input.gender)||typeof input.studentId!=='string')return reply({error:'학번·이름·성별을 확인해 주세요.'},400);
-   const student=parseStudentId(input.studentId);const role=input.role??'STUDENT';
-   if(!['STUDENT','CLASS_OFFICER','COUNCIL_OFFICER','COUNCIL_EXECUTIVE','PR_DIRECTOR'].includes(role))return reply({error:'허용되지 않은 등급입니다.'},400);
+   if(typeof input.name!=='string'||input.name.trim().length<2||input.name.trim().length>30||(input.role!=='SUPERVISING_TEACHER'&&(!['MALE','FEMALE'].includes(input.gender)||typeof input.studentId!=='string')))return reply({error:'학번·이름·성별을 확인해 주세요.'},400);
+   const role=input.role??'STUDENT';const student=role==='SUPERVISING_TEACHER'?null:parseStudentId(input.studentId);
+   if(!['STUDENT','CLASS_OFFICER','COUNCIL_OFFICER','COUNCIL_EXECUTIVE','PR_DIRECTOR','SUPERVISING_TEACHER'].includes(role))return reply({error:'허용되지 않은 등급입니다.'},400);
    const {error:rate}=await admin.rpc('reserve_account_request',{p_user:user.id,p_operation:'issue'});if(rate)return reply({error:'발급 요청이 많습니다. 잠시 후 다시 시도해 주세요.'},429);
    const credentials=temporaryCredentials();
    const {data:{user:created},error}=await admin.auth.admin.createUser({email:authEmail(credentials.loginId),password:credentials.password,email_confirm:true,user_metadata:{display_name:input.name.trim()},app_metadata:{credential_version:0}});
    if(error||!created)return reply({error:'임시 계정을 발급하지 못했습니다.'},400);
-   const {error:setup}=await admin.rpc('initialize_provisioned_account',{p_user:created.id,p_name:input.name.trim(),p_student_id:student.studentId,p_gender:input.gender,p_role:role,p_position:input.position??null,p_issuer:user.id});
-   if(setup){await admin.auth.admin.deleteUser(created.id);return reply({error:setup.message?.includes('PILOT_LEVEL_LIMIT')?'임시 운영에서는 레벨별 계정을 1개씩만 발급합니다. L4 직책은 한 자리를 공유합니다.':'학번 중복 여부와 학급 직책을 확인해 주세요. 계정 발급을 완료하지 못했습니다.'},409);}
-   return reply({...credentials,studentId:student.studentId,name:input.name.trim()});
+   const {error:setup}=await admin.rpc('initialize_provisioned_account',{p_user:created.id,p_name:input.name.trim(),p_student_id:student?.studentId??null,p_gender:student?input.gender:null,p_role:role,p_position:input.position??null,p_issuer:user.id});
+   if(setup){await admin.auth.admin.deleteUser(created.id);return reply({error:'학번 중복 여부와 학급 직책을 확인해 주세요. 계정 발급을 완료하지 못했습니다.'},409);}
+   try{
+    const sealed=await sealTemporaryPassword(Deno.env.get('TEMP_CREDENTIAL_KEY')??'',created.id,credentials.password);
+    const {error:saveError}=await admin.rpc('store_temporary_credential',{p_user:created.id,p_sealed:sealed});
+    if(saveError)throw new Error('Temporary credential storage failed');
+   }catch{
+    await admin.auth.admin.deleteUser(created.id);
+    return reply({error:'임시 로그인 정보를 안전하게 보관하지 못해 발급을 취소했습니다.'},503);
+   }
+   return reply({...credentials,studentId:student?.studentId??'',name:input.name.trim()});
   }
   if(input.operation==='change'){
    const {data:account,error}=await caller.rpc('own_account');if(error||account?.status!=='ACTIVE'||!account.loginId)return reply({error:'이용 가능한 발급 계정을 확인해 주세요.'},403);

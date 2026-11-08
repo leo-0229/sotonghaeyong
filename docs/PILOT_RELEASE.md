@@ -22,7 +22,7 @@ flowchart LR
 | 빌드 HTML·CSS·JavaScript | Pages에서 누구나 다운로드 가능. 화면 로그인으로 파일 자체를 숨길 수 없음 |
 | Supabase URL·publishable/anon 키 | 공개 빌드 설정. 권한은 키 은닉이 아니라 서버의 Auth·RLS·RPC로 검증 |
 | 이름·학번·성별·로그인 아이디·글·제출·교사명 검사 명단 | Supabase에만 저장. 소스·정적 빌드·Actions 변수·테스트 자료에 실제 값을 넣지 않음 |
-| Auth 비밀번호 | Supabase Auth에서 관리. 발급 시 임시 비밀번호만 담당자 화면에 한 번 표시 |
+| Auth 비밀번호 | Supabase Auth에서 관리. 최초 설정 전 임시 비밀번호를 서버에서 암호화 보관하고 L5만 재조회. 설정 완료 시 삭제 |
 | service_role·AI 키 | Supabase 서버 비밀 설정. 최초 교사 발급용 service_role만 로컬의 무시된 `.env.admin.local`에서도 사용. GitHub에 등록하지 않음 |
 
 GitHub Pages는 정적 파일을 공개하는 호스팅입니다. 비공개 저장소 사용 가능 여부는 요금제에 따라 다르며, 비공개 저장소를 썼다고 일반 Pages 사이트까지 비공개가 되는 것은 아닙니다. [GitHub 공식 안내](https://docs.github.com/en/pages/getting-started-with-github-pages/creating-a-github-pages-site)
@@ -41,21 +41,21 @@ GitHub Pages는 정적 파일을 공개하는 호스팅입니다. 비공개 저�
 
 ## 단계 2: Supabase 연결과 5개 계정
 
-새 임시 운영용 Supabase 프로젝트를 사용합니다. SQL `001 → 002 → 003 → 004_pilot_release.sql` 순서로 적용하고 `account-access`, `moderate-post`를 배포합니다. 공개 가입을 끄고 허용 Origin을 Pages 도메인으로 지정합니다. 자세한 연결 명령은 [배포 가이드](DEPLOYMENT.md)를 따릅니다.
+새 임시 운영용 Supabase 프로젝트를 사용합니다. SQL `001 → 002 → 003 → 004 → 005 → 006 → 007_reusable_temporary_accounts.sql` 순서로 적용하고 `account-access`, `moderate-post`를 배포합니다. 공개 가입을 끄고 허용 Origin을 Pages 도메인으로 지정합니다. 자세한 연결 명령은 [배포 가이드](DEPLOYMENT.md)를 따릅니다.
 
 | 레벨 | 임시 발급 수 | 역할 |
 | --- | --- | --- |
-| L1 | 1 | 일반 학생 |
-| L2 | 1 | 반장 또는 부반장 중 한 명 |
-| L3 | 1 | 학생회 임원 |
-| L4 | 1 | 회장단 또는 홍보부장 중 한 명 |
-| L5 | 2 | 담당 교사 |
+| L1 | 제한 없음 | 일반 학생 |
+| L2 | 제한 없음 | 반장 또는 부반장 중 한 명 |
+| L3 | 제한 없음 | 학생회 임원 |
+| L4 | 제한 없음 | 회장단 또는 홍보부장 중 한 명 |
+| L5 | 제한 없음 | 담당 교사 |
 
-총 **5개**입니다. L4 역할 코드가 둘이어도 별도 두 자리가 아닙니다. DB의 비공개 슬롯과 트랜잭션 잠금으로 중복 발급을 거부합니다. 임시 비밀번호 미변경·정지·탈퇴 계정도 슬롯을 차지하며 등급 변경으로 이미 찬 레벨에 들어가는 것도 거부합니다. 슬롯 확대는 후속 운영 정책과 SQL 변경으로만 진행합니다. 현재 Supabase 프로젝트와 확인된 대상자 정보가 없어 실제 5개 계정은 아직 발급되지 않았습니다.
+007부터 등급별 인원 제한을 없앴습니다. 같은 학번과 같은 반·직책 중복은 금지하며, L5만 발급하고 최초 설정 전 임시 정보를 다시 확인할 수 있습니다. 임시 비밀번호 암호화 보관과 완료 후 삭제는 [계정 안내](ACCOUNTS.md)를 따릅니다.
 
 먼저 운영자 CLI로 L5 한 명을 발급하고 첫 로그인 변경을 마칩니다. 이후 교사 화면에서 확인된 학번·이름·성별로 L1~L4 한 명씩 발급합니다. 임시 아이디·비밀번호는 소스·문서·Actions 로그·이슈에 남기지 말고 각 대상자에게 개별 전달합니다. CLI를 화면 녹화·터미널 기록·공유 로그가 켜진 곳에서 실행하지 않습니다. [계정 발급 안내](ACCOUNTS.md)
 
-로컬 개발 화면의 가상 인물은 여러 권한 시나리오를 검증하기 위한 테스트 자료이며 실제 발급 계정이 아닙니다. 공개 빌드에는 역할 선택을 허용하지 않습니다. 004를 적용할 기존 DB에 같은 레벨의 발급 계정이 이미 여럿이면 SQL이 중단됩니다. 임의 삭제 대신 담당자가 대상자를 정리한 뒤 적용해야 합니다.
+로컬 개발 화면의 가상 인물은 권한 시나리오를 검증하는 테스트 자료입니다. 운영 사이트에서는 실제 Supabase 인증을 사용하며, 공개 빌드의 가상 역할 선택은 차단합니다.
 
 GitHub Actions Variables에는 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` 두 공개 값만 등록합니다. 다시 workflow를 **connected**로 실행하면 실제 로그인이 활성화됩니다.
 
@@ -69,7 +69,7 @@ GitHub Actions Variables에는 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE
 
 - `npm.cmd test`, `npm.cmd run typecheck`, `npm.cmd run test:e2e`, `npm.cmd run build`, `npm.cmd run audit:release -- --out` 실행.
 - GitHub로 올릴 파일 목록을 직접 확인. 실제 명단·글·비밀번호·교사 성함을 테스트 fixture나 seed로 복사하지 않음.
-- 실제 연결 후 로그아웃·임시 비밀번호 미변경 상태의 REST/RPC 접근 거부와 타인의 미승인 글 비공개, 자기 승인 금지, 두 번째 동일 레벨 발급 거부를 확인.
+- 실제 연결 후 로그아웃·임시 비밀번호 미변경 상태의 REST/RPC 접근 거부와 타인의 미승인 글 비공개, 자기 승인 금지, 동일 등급 복수 발급과 최초 설정 후 임시 비밀번호 삭제를 확인.
 - 무시 파일 규칙은 이미 커밋된 자료를 숨기지 않음. 키가 커밋되면 즉시 폐기·재발급하고 기록과 배포 결과도 정리.
 
 패턴 검사는 흔한 비밀키와 비공개 파일을 차단하는 보조 수단입니다. 모든 개인정보를 자동 식별하거나 과거 Git 기록을 정리하지는 않습니다. 실제 Supabase·GitHub 통합 검증은 연결 후 수행해야 합니다.

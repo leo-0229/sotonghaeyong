@@ -11,6 +11,9 @@ supabase/migrations/202611080001_initial.sql
 supabase/migrations/202611080002_pages_and_policy.sql
 supabase/migrations/202611080003_temporary_accounts.sql
 supabase/migrations/202611080004_pilot_release.sql
+supabase/migrations/202611080005_five_digit_student_ids.sql
+supabase/migrations/202611080006_two_pilot_administrators.sql
+supabase/migrations/202611080007_reusable_temporary_accounts.sql
 ```
 
 002는 기존 학급 제출의 보완·접수 확정 상태를 `SUBMITTED`로 바꿉니다. 이전 과목별 멘토링 테이블은 이력 기반으로 남지만 새 화면은 `school_life_mentoring`을 사용합니다. 운영 이력이 있다면 먼저 백업과 기존 매칭 검토가 필요합니다.
@@ -84,3 +87,5 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 ## 아이톡톡
 
 [경상남도교육청 미래교육원](https://gnfe.gne.go.kr/gnfe/cm/cntnts/cntntsView.do?cntntsId=10178&mi=20349)은 외부 에듀테크 연계를 설명합니다. 다만 이번 조사에서 개인 개발자가 즉시 사용할 공개 OAuth 등록·개발 규격은 확인하지 못했습니다. 사용자가 선택한 별도 발급 계정 방식을 구현했습니다. 공식 연동 승인·개발 문서·클라이언트 등록이 준비되면 해당 규격으로 추가할 수 있습니다.
+
+임시 비밀번호 재조회에는 `account-access` 서버 비밀 설정 `TEMP_CREDENTIAL_KEY`가 필요합니다. 32바이트 무작위 hex 키를 사용하고 브라우저 변수·저장소에 넣지 않습니다. 키와 운영자 CLI 설정은 [계정 안내](ACCOUNTS.md)를 따릅니다.

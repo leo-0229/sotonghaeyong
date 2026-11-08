@@ -102,11 +102,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   };
   async function issueAccount(input:{studentId:string;name:string;gender:'MALE'|'FEMALE';role:Role;position?:string}){
     if(!isTeacher(ref.current.members.find(m=>m.id===ref.current.currentMemberId)))throw new Error('담당 교사만 계정을 발급할 수 있습니다.');
-    const parsed=parseStudentId(input.studentId);if(input.name.trim().length<2||input.name.trim().length>30||!['MALE','FEMALE'].includes(input.gender)||input.role==='SUPERVISING_TEACHER')throw new Error('이름·성별·등급을 확인해 주세요.');
-    if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('account-access',{body:{operation:'issue',...input,studentId:parsed.studentId}});if(error)throw new Error('발급하지 못했습니다. 해당 레벨의 기존 계정, 학번 중복 여부와 계정 서버를 확인해 주세요.');await refresh();return data;}finally{setBusy(false);}}
+    const parsed=input.role==='SUPERVISING_TEACHER'?{studentId:'',classId:''}:parseStudentId(input.studentId);if(input.name.trim().length<2||input.name.trim().length>30||(input.role!=='SUPERVISING_TEACHER'&&!['MALE','FEMALE'].includes(input.gender)))throw new Error('이름·성별·등급을 확인해 주세요.');
+    if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('account-access',{body:{operation:'issue',...input,studentId:parsed.studentId}});if(error)throw new Error('발급하지 못했습니다. 학번 중복 여부와 계정 서버를 확인해 주세요.');await refresh();return data;}finally{setBusy(false);}}
     if(!demoAllowed())throw new Error('계정 서버가 설정되지 않았습니다.');
-    if(ref.current.members.some(m=>m.loginId&&ROLE_INFO[m.role].level===ROLE_INFO[input.role].level))throw new Error('임시 운영에서는 레벨별 발급 계정을 1개씩만 만듭니다.');
-    if(ref.current.members.some(m=>m.studentId===parsed.studentId))throw new Error('이미 발급된 학번입니다.');
+    if(parsed.studentId&&ref.current.members.some(m=>m.studentId===parsed.studentId))throw new Error('이미 발급된 학번입니다.');
     const credentials=temporaryCredentials();const id=uid();
     persist({...ref.current,members:[...ref.current.members,{id,name:input.name.trim(),studentId:parsed.studentId,classId:parsed.classId,gender:input.gender,role:input.role,position:input.role==='CLASS_OFFICER'?input.position as Member['position']:undefined,status:'ACTIVE',loginId:credentials.loginId,mustChangeCredentials:true,credentialVersion:0}]});
     return {...credentials,studentId:parsed.studentId,name:input.name.trim()};

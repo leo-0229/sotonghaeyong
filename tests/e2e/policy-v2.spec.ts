@@ -30,11 +30,11 @@ test('clean official posts still wait for another reviewer',async({page})=>{
  await choose(page,'담당 교사');await go(page,'/posts/write');await expect(page.getByText('모든 게시글은 운영진 승인 후 공개됩니다.')).toBeVisible();await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('notice');await page.getByLabel('제목',{exact:true}).fill('정중한 임시 운영 공지');await page.getByLabel('내용',{exact:true}).fill('소통해용에서 함께 학교생활 이야기를 나누어요. 서로의 의견을 존중해 주세요.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await go(page,'/boards');await expect(page.getByRole('link',{name:/정중한 임시 운영 공지/})).toHaveCount(0);await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'정중한 임시 운영 공지'}).getByRole('button',{name:'승인 후 공개'}).click();await go(page,'/boards');await expect(page.getByRole('link',{name:/정중한 임시 운영 공지/})).toBeVisible();
 });
 
-test('pilot issuing blocks a second account in the same level',async({page})=>{
+test('L5 can issue several accounts at the same level',async({page})=>{
  await choose(page,'담당 교사');await go(page,'/admin/accounts');
  for(const [sid,name]of [['20315','첫발급학생'],['20316','다음발급학생']]){
   await page.getByLabel('학번',{exact:true}).fill(sid);await page.getByLabel('이름',{exact:true}).fill(name);await page.getByRole('combobox',{name:'성별',exact:true}).selectOption('FEMALE');await page.getByRole('button',{name:'임시 계정 발급',exact:true}).click();
-  if(sid==='20315')await expect(page.locator('.issued-credentials')).toBeVisible();else await expect(page.getByRole('status')).toContainText('레벨별 발급 계정을 1개씩');
+  await expect(page.locator('.issued-credentials')).toBeVisible();
  }
- await go(page,'/login');await expect(page.locator('.demo-accounts button').filter({hasText:'첫발급학생'})).toHaveCount(1);await expect(page.locator('.demo-accounts button').filter({hasText:'다음발급학생'})).toHaveCount(0);
+ await go(page,'/login');await expect(page.locator('.demo-accounts button').filter({hasText:'첫발급학생'})).toHaveCount(1);await expect(page.locator('.demo-accounts button').filter({hasText:'다음발급학생'})).toHaveCount(1);
 });
