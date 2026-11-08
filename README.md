@@ -1,5 +1,7 @@
 # 소통해용
 
+GitHub 저장소: [leo-0229/sotonghaeyong_beta_1.0](https://github.com/leo-0229/sotonghaeyong_beta_1.0)
+
 진주 문산중학교 학생 자치 커뮤니티입니다. **GitHub Pages 정적 사이트 + Supabase Auth/PostgreSQL/Edge Function** 구성을 사용합니다.
 
 처음 배포한다면 [쉬운 시작 안내](docs/BEGINNER_SETUP.md)부터 읽어 주세요.
