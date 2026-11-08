@@ -14,6 +14,30 @@ Deno.serve(async(req:Request)=>{
   const {data:{user},error:authError}=await caller.auth.getUser(jwt);if(authError||!user)return reply({error:'로그인이 필요합니다.'},401);
   const raw=await req.text();if(raw.length>8000)return reply({error:'요청 크기가 너무 큽니다.'},413);const input=JSON.parse(raw);
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false,autoRefreshToken:false}});
+  if(input.operation==='reissue'||input.operation==='delete'){
+   const {data:lvl,error:permissionError}=await caller.rpc('current_level');
+   if(permissionError||lvl!==5)return reply({error:'L5 관리자만 계정을 재발급하거나 삭제할 수 있습니다.'},403);
+   if(typeof input.userId!=='string'||!/^[a-f0-9-]{36}$/i.test(input.userId)||typeof input.confirmName!=='string')return reply({error:'대상 회원과 확인 이름을 입력하세요.'},400);
+   if(input.userId===user.id)return reply({error:'본인 계정은 재발급하거나 삭제할 수 없습니다. 다른 L5에게 요청하세요.'},403);
+   const {error:rate}=await admin.rpc('reserve_account_request',{p_user:user.id,p_operation:'issue'});
+   if(rate)return reply({error:'요청이 많습니다. 잠시 후 다시 시도하세요.'},429);
+   const {data:target,error:targetError}=await admin.auth.admin.getUserById(input.userId);
+   if(targetError||!target.user)return reply({error:'대상 계정을 찾지 못했습니다.'},404);
+   const credentials=input.operation==='reissue'?temporaryCredentials():null;
+   const sealed=credentials?await sealTemporaryPassword(Deno.env.get('TEMP_CREDENTIAL_KEY')??'',input.userId,credentials.password):null;
+   const {data:job,error:beginError}=await admin.rpc('begin_managed_account_action',{p_actor:user.id,p_target:input.userId,p_name:input.confirmName,p_operation:input.operation,p_login_id:credentials?.loginId??null,p_sealed:sealed});
+   if(beginError)return reply({error:'이름이 일치하는지, 대상이 이용 가능한 계정인지 확인하세요. 본인 계정과 마지막 L5는 처리할 수 없습니다.'},409);
+   if(input.operation==='delete'){
+    const {error}=await admin.auth.admin.deleteUser(input.userId);
+    if(error)return reply({error:'계정 이용은 차단했지만 삭제를 끝내지 못했습니다. L5가 삭제를 다시 시도하세요.'},503);
+    return reply({deleted:true});
+   }
+   const {error:updateError}=await admin.auth.admin.updateUserById(input.userId,{email:authEmail(credentials!.loginId),email_confirm:true,password:credentials!.password,app_metadata:{...target.user.app_metadata,credential_version:job.credentialVersion,maintenance_id:job.operationId}});
+   if(updateError)return reply({error:'기존 로그인을 차단했지만 재발급을 완료하지 못했습니다. L5가 재발급을 다시 시도하세요.'},503);
+   const {error:finishError}=await admin.rpc('finish_account_reissue',{p_actor:user.id,p_target:input.userId,p_operation_id:job.operationId});
+   if(finishError)return reply({error:'재발급 확인을 마치지 못했습니다. L5가 재발급을 다시 시도하세요.'},503);
+   return reply({reissued:true});
+  }
   if(input.operation==='temporary-list'){
    const {data:lvl,error:permissionError}=await caller.rpc('current_level');
    if(permissionError||lvl!==5)return reply({error:'L5 관리자만 임시 로그인 정보를 확인할 수 있습니다.'},403);
@@ -44,6 +68,8 @@ Deno.serve(async(req:Request)=>{
    return reply({...credentials,studentId:student?.studentId??'',name:input.name.trim()});
   }
   if(input.operation==='change'){
+   const {data:pending,error:pendingError}=await admin.rpc('account_action_pending',{p_user:user.id});
+   if(pendingError||pending)return reply({error:'관리자가 계정을 처리 중입니다. 완료 후 다시 로그인하세요.'},409);
    const {data:account,error}=await caller.rpc('own_account');if(error||account?.status!=='ACTIVE'||!account.loginId)return reply({error:'이용 가능한 발급 계정을 확인해 주세요.'},403);
    if(typeof input.loginId!=='string'||typeof input.currentPassword!=='string'||typeof input.newPassword!=='string')return reply({error:'로그인 정보를 확인해 주세요.'},400);
    const loginId=validateCredentials(account.loginId,input.loginId,input.currentPassword,input.newPassword);

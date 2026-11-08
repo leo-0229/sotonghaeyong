@@ -15,6 +15,7 @@ interface DemoContextValue {
   mode: 'demo' | 'supabase' | 'unconfigured'; busy: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   issueAccount: (input:{studentId:string;name:string;gender:'MALE'|'FEMALE';role:Role;position?:string})=>Promise<{loginId:string;password:string;studentId:string;name:string}>;
+  manageAccount:(userId:string,operation:'reissue'|'delete',confirmName:string)=>Promise<void>;
   changeCredentials:(loginId:string,currentPassword:string,newPassword:string)=>Promise<void>;
   notify: (text: string) => void; commit: (update: Update) => Promise<void>;
   switchMember: (id: string | null) => Promise<void>; reset: () => void;
@@ -110,6 +111,28 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     persist({...ref.current,members:[...ref.current.members,{id,name:input.name.trim(),studentId:parsed.studentId,classId:parsed.classId,gender:input.gender,role:input.role,position:input.role==='CLASS_OFFICER'?input.position as Member['position']:undefined,status:'ACTIVE',loginId:credentials.loginId,mustChangeCredentials:true,credentialVersion:0}]});
     return {...credentials,studentId:parsed.studentId,name:input.name.trim()};
   }
+  async function manageAccount(userId:string,operation:'reissue'|'delete',confirmName:string){
+    const actor=ref.current.members.find(m=>m.id===ref.current.currentMemberId);
+    if(!isTeacher(actor)||actor?.id===userId)throw new Error('다른 L5 계정으로 처리해 주세요.');
+    const target=ref.current.members.find(m=>m.id===userId);
+    if(!target||target.name!==confirmName)throw new Error('대상 이름을 정확히 확인하세요.');
+    if(supabase){
+      setBusy(true);try{
+        const {error}=await supabase.functions.invoke('account-access',{body:{operation,userId,confirmName}});
+        await refresh();
+        if(error){let message='처리하지 못했습니다. 대상 이름과 계정 상태를 확인하세요.';try{const body=await error.context?.json();if(body?.error)message=body.error;}catch{}throw new Error(message);}
+      }finally{setBusy(false);}
+      return;
+    }
+    if(!demoAllowed())throw new Error('계정 서버를 확인하세요.');
+    if(operation==='reissue'){
+      if(target.status!=='ACTIVE')throw new Error('이용 중인 계정만 재발급할 수 있습니다.');
+      const credentials=temporaryCredentials();
+      persist({...ref.current,members:ref.current.members.map(m=>m.id===userId?{...m,loginId:credentials.loginId,mustChangeCredentials:true,credentialVersion:(m.credentialVersion??0)+1}:m)});
+    }else{
+      persist({...ref.current,members:ref.current.members.filter(m=>m.id!==userId),posts:ref.current.posts.map(p=>({...p,...(p.authorId===userId?{author:'탈퇴 회원',authorId:''}:{}),comments:p.comments.map(c=>c.authorId===userId?{...c,author:'탈퇴 회원',authorId:''}:c)}))});
+    }
+  }
   async function changeCredentials(loginId:string,currentPassword:string,newPassword:string){
     const own=ref.current.members.find(m=>m.id===ref.current.currentMemberId);if(!own?.loginId||own.status!=='ACTIVE')throw new Error('발급 계정으로 로그인해 주세요.');
     const id=validateCredentials(own.loginId,loginId,currentPassword,newPassword);
@@ -182,7 +205,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,changeCredentials,notify, commit, switchMember, reset, createPost, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }

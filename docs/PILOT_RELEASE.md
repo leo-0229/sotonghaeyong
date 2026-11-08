@@ -41,7 +41,7 @@ GitHub Pages는 정적 파일을 공개하는 호스팅입니다. 비공개 저�
 
 ## 단계 2: Supabase 연결과 5개 계정
 
-새 임시 운영용 Supabase 프로젝트를 사용합니다. SQL `001 → 002 → 003 → 004 → 005 → 006 → 007_reusable_temporary_accounts.sql` 순서로 적용하고 `account-access`, `moderate-post`를 배포합니다. 공개 가입을 끄고 허용 Origin을 Pages 도메인으로 지정합니다. 자세한 연결 명령은 [배포 가이드](DEPLOYMENT.md)를 따릅니다.
+새 임시 운영용 Supabase 프로젝트를 사용합니다. SQL `001 → 002 → 003 → 004 → 005 → 006 → 007 → 008_account_recovery_and_deletion.sql` 순서로 적용하고 `account-access`, `moderate-post`를 배포합니다. 공개 가입을 끄고 허용 Origin을 Pages 도메인으로 지정합니다. 자세한 연결 명령은 [배포 가이드](DEPLOYMENT.md)를 따릅니다.
 
 | 레벨 | 임시 발급 수 | 역할 |
 | --- | --- | --- |

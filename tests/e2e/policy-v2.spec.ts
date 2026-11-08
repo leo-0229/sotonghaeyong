@@ -38,3 +38,20 @@ test('L5 can issue several accounts at the same level',async({page})=>{
  }
  await go(page,'/login');await expect(page.locator('.demo-accounts button').filter({hasText:'첫발급학생'})).toHaveCount(1);await expect(page.locator('.demo-accounts button').filter({hasText:'다음발급학생'})).toHaveCount(1);
 });
+
+test('L5 account actions require name confirmation and protect self',async({page})=>{
+ await choose(page,'담당 교사');await go(page,'/admin/members');
+ await expect(page.getByRole('row').filter({hasText:'담당 선생님'}).getByRole('button',{name:'계정 삭제',exact:true})).toHaveCount(0);
+ const row=page.getByRole('row').filter({hasText:'이서연'});
+ await row.getByRole('button',{name:'로그인 정보 재발급',exact:true}).click();
+ let dialog=page.getByRole('dialog',{name:'이서연 로그인 정보 재발급 확인'});
+ await expect(dialog.getByRole('button',{name:'재발급 확정'})).toBeDisabled();
+ await dialog.getByLabel('확인할 회원 이름').fill('다른이름');await dialog.getByRole('checkbox').check();
+ await expect(dialog.getByRole('button',{name:'재발급 확정'})).toBeDisabled();
+ await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('button',{name:'재발급 확정'}).click();
+ await expect(row).toContainText('첫 로그인 변경 대기');
+ await row.getByRole('button',{name:'계정 삭제',exact:true}).click();
+ dialog=page.getByRole('dialog',{name:'이서연 계정 삭제 확인'});
+ await dialog.getByLabel('확인할 회원 이름').fill('이서연');await dialog.getByRole('checkbox').check();
+ await dialog.getByRole('button',{name:'삭제 확정'}).click();await expect(row).toHaveCount(0);
+});
