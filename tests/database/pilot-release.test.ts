@@ -6,7 +6,7 @@ let db:PGlite;
 beforeAll(async()=>{
  db=await createPolicyDatabase();
  await db.exec("alter table auth.users add column email text unique;alter table auth.users add column encrypted_password text;alter table auth.users add column raw_app_meta_data jsonb not null default '{}'");
- for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
+ for(const file of ['202611080003_temporary_accounts.sql','202611080004_pilot_release.sql','202611080005_five_digit_student_ids.sql','202611080006_two_pilot_administrators.sql'])await db.exec(await readFile(`supabase/migrations/${file}`,'utf8'));
 });
 beforeEach(async()=>{await db.exec('begin');});afterEach(async()=>{await db.exec('rollback');});afterAll(async()=>{await db?.close();});
 const uuid=(n:number)=>`80000000-0000-4000-8000-${String(n).padStart(12,'0')}`;
@@ -19,6 +19,8 @@ async function post(author:string=ids.student,status='PENDING'){
  await db.exec('set local role service_role');return (await db.query<{id:string}>("select public.store_moderated_post($1,$2,'정중한 학교 의견','학교생활에 관한 정중하고 충분히 긴 의견입니다.',$3,'{}',null) as id",[author,author===ids.teacher?'notice':'free',status])).rows[0].id;
 }
 describe('pilot release: latest migration chain',()=>{
+ it('allows two L5 accounts but refuses a third',async()=>{await issue(1,'SUPERVISING_TEACHER');await issue(2,'SUPERVISING_TEACHER');await expect(issue(3,'SUPERVISING_TEACHER')).rejects.toThrow('PILOT_LEVEL_LIMIT');});
+ it('moves an L4 account to the second L5 slot and blocks another promotion',async()=>{await issue(1,'SUPERVISING_TEACHER');await issue(2,'COUNCIL_EXECUTIVE');await db.query("update public.user_roles set role_code='SUPERVISING_TEACHER' where user_id=$1",[uuid(2)]);await issue(3,'COUNCIL_OFFICER');await expect(db.query("update public.user_roles set role_code='SUPERVISING_TEACHER' where user_id=$1",[uuid(3)])).rejects.toThrow('PILOT_LEVEL_LIMIT');});
  it('rejects automatic approval at the database service boundary',async()=>{await expect(post(ids.student,'APPROVED')).rejects.toThrow('HUMAN_APPROVAL_REQUIRED');});
  it('hides a clean post until another reviewer approves it',async()=>{const id=await post();await actor(ids.president);expect((await db.query('select id from public.posts where id=$1',[id])).rows).toHaveLength(0);await actor(ids.officer);await db.query("select public.review_post($1,'APPROVED',null)",[id]);await actor(ids.president);expect((await db.query('select id from public.posts where id=$1',[id])).rows).toHaveLength(1);});
  it('also queues official teacher posts and forbids self approval',async()=>{const id=await post(ids.teacher);await actor(ids.teacher);await expect(db.query("select public.review_post($1,'APPROVED',null)",[id])).rejects.toThrow('OTHER_REVIEWER_REQUIRED');});

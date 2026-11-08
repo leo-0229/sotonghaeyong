@@ -37,7 +37,7 @@ npm.cmd run dev
 
 ## 현재 상태
 
-**계정 발급 및 최초 로그인 변경 절차는 [계정 안내](docs/ACCOUNTS.md)를 참고하세요.** 교사 화면의 임시 계정 발급과 별도 운영자 CLI를 제공합니다. 기존 설정에는 SQL 003·004와 `account-access`/`moderate-post` 함수 배포를 추가해야 합니다. 임시 운영은 L1~L5 각 1개(총 5개)만 발급합니다.
+**계정 발급 및 최초 로그인 변경 절차는 [계정 안내](docs/ACCOUNTS.md)를 참고하세요.** 교사 화면의 임시 계정 발급과 별도 운영자 CLI를 제공합니다. 기존 설정에는 SQL 003·004와 `account-access`/`moderate-post` 함수 배포를 추가해야 합니다. 임시 운영은 L1~L4 각 1개, L5 최대 2개(총 6개)만 발급합니다.
 
 - **로컬 체험**은 가상 회원·일정과 localStorage로 동작합니다. 실제 개인정보를 입력하지 마세요. 이전 v1 데이터와 새 v2 데이터를 분리했습니다.
 - **운영 코드**는 Supabase가 설정되면 실제 계정 인증 후 RLS가 적용된 `community_snapshot`으로 읽고 검증된 RPC로 저장합니다. 운영 데이터 전체를 localStorage에 저장하지 않습니다. Auth 세션은 Supabase 클라이언트가 관리합니다.
