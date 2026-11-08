@@ -1,0 +1,9 @@
+project_id = "mpms"
+
+[functions.moderate-post]
+# The handler independently verifies the supplied user token with Auth.getUser.
+# This supports publishable keys and current JWT signing configurations.
+verify_jwt = false
+
+[functions.account-access]
+verify_jwt = false

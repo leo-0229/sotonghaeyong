@@ -1,0 +1,9 @@
+import {describe,expect,it} from 'vitest';
+import {containsSecret,privatePath,validatePublicConfig} from '../../scripts/release-audit.mjs';
+describe('release data boundary',()=>{
+ it('distinguishes CSS mask classes and PEM marker literals from actual key material',()=>{expect(containsSecret('mask-linear-from-transparent')).toBe(false);const begin='-----BEGIN '+'PRIVATE KEY-----';const end='-----END '+'PRIVATE KEY-----';expect(containsSecret(begin)).toBe(false);expect(containsSecret(`${begin}\n${'A'.repeat(64)}\n${end}`)).toBe(true);});
+ it.each(['.env.local','supabase/functions/.env.local','private/accounts.json','exports/students.json','backup.dump','roster.csv','key.pem'])('blocks private path %s',file=>expect(privatePath(file)).toBe(true));
+ it.each(['.env.example','.env.admin.example','supabase/functions/.env.example','src/lib/seed.ts','docs/ACCOUNTS.md'])('allows shareable source %s',file=>expect(privatePath(file)).toBe(false));
+ it('detects secret keys and service-role JWTs without logging their content',()=>{expect(containsSecret('sb_secret_'+'x'.repeat(32))).toBe(true);const encode=(v:unknown)=>Buffer.from(JSON.stringify(v)).toString('base64url');expect(containsSecret(`${encode({alg:'HS256'})}.${encode({role:'service_role'})}.signature`)).toBe(true);expect(containsSecret('sb_publishable_'+'x'.repeat(32))).toBe(false);});
+ it('rejects a secret in the public-key variable even when nothing scans it',()=>{expect(()=>validatePublicConfig({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_secret_'+'x'.repeat(32)})).toThrow(/publishable/);expect(()=>validatePublicConfig({})).not.toThrow();expect(()=>validatePublicConfig({NEXT_PUBLIC_SUPABASE_URL:'https://example.supabase.co',NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'sb_publishable_'+'x'.repeat(32)})).not.toThrow();});
+});
