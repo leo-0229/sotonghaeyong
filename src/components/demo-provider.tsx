@@ -159,7 +159,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const reset = () => { persist(createSeed()); notify('체험 데이터를 처음 상태로 되돌렸습니다.'); };
   function inspectContent(title:string,content:string){return localModeration(title,content,ref.current.members.map(m=>m.name));}
   async function createPost(input: { board: string; title: string; content: string; prefix?: string }, draft = false, editId?: string) {
-    const parsed = postSchema.parse(input);parsed.prefix=parsed.prefix||BOARD_PREFIXES[parsed.board]?.[0]||''; const id = editId ?? uid();
+    const parsed = postSchema.parse(input);parsed.prefix=parsed.board==='music'?'':parsed.prefix||BOARD_PREFIXES[parsed.board]?.[0]||''; const id = editId ?? uid();
     if(supabase){
       setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{...parsed,draft,editId}});if(error)throw new Error('게시글을 저장하지 못했습니다. 검토 서버 연결을 확인해 주세요.');await refresh();notify(draft?'임시 저장했습니다.':data.status==='APPROVED'?'규칙 검사를 통과해 공개되었습니다.':'공개되지 않았습니다. 운영진 승인 대기로 저장했습니다.');return data.id as string;}finally{setBusy(false);}
     }

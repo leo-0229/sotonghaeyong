@@ -22,7 +22,7 @@ Deno.serve(async(req:Request)=>{
   const min=kind==='comment'?2:kind==='suggestion-reply'?5:10;
   if(!['post','comment','suggestion','suggestion-reply'].includes(kind)||typeof content!=='string'||content.trim().length<min||content.length>max||typeof title!=='string'||((kind==='post'||kind==='suggestion')&&(title.trim().length<2||title.length>100)))return reply({error:'제목과 내용을 확인하세요.'},400);
   if(kind==='suggestion-reply'&&!(level>=3&&level<=4))return reply({error:'학생회 임원만 건의에 답변할 수 있습니다.'},403);
-  const board=input.board,prefix=kind==='post'?(input.prefix||BOARD_PREFIXES[board]?.[0]||''):'';
+  const board=input.board,prefix=kind==='post'&&board!=='music'?(input.prefix||BOARD_PREFIXES[board]?.[0]||''):'';
   if(kind==='post'&&(typeof board!=='string'||!BOARD_PREFIXES[board]||typeof prefix!=='string'||!BOARD_PREFIXES[board].includes(prefix)||(input.editId!=null&&typeof input.editId!=='string')||(input.draft!=null&&typeof input.draft!=='boolean')))return reply({error:'게시판과 말머리를 확인하세요.'},400);
   if(kind==='suggestion'&&(!['PUBLIC','PRIVATE'].includes(input.visibility)||typeof input.category!=='string'||input.category.length<1||input.category.length>50))return reply({error:'공개 범위와 건의 분야를 확인하세요.'},400);
   if(kind==='comment'&&(typeof input.postId!=='string'||(input.parentId!=null&&typeof input.parentId!=='string')))return reply({error:'댓글 대상을 확인하세요.'},400);

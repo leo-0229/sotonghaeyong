@@ -110,7 +110,8 @@ describe('comment reporting permissions and moderation',()=>{
 });
 
 describe('music board and runtime member-name directory',()=>{
- it('provides the ordinary music board without inserting demo posts',async()=>{await actor(ids.student);expect((await db.query("select title,official from public.boards where slug='music'")).rows).toEqual([{title:'오노추',official:false}]);});
+ it('provides the ordinary music board without inserting demo posts',async()=>{await actor(ids.student);expect((await db.query("select title,official from public.boards where slug='music'")).rows).toEqual([{title:'노래 추천',official:false}]);});
+ it('clears stale music prefixes at the storage boundary',async()=>{await service();const id=(await db.query<{id:string}>("select public.store_moderated_post($1,'music','노래 추천 검사','잔잔한 연주곡을 추천하는 게시글입니다.','APPROVED','{}',null,'오노추',true) as id",[ids.student])).rows[0].id;await db.exec('reset role');expect((await db.query('select prefix from public.posts where id=$1',[id])).rows).toEqual([{prefix:''}]);});
  it('does not expose the full moderation name list to authenticated clients',async()=>{await actor(ids.student);await expect(db.query('select public.moderation_member_names()')).rejects.toThrow(/permission denied/);});
  it('allows the trusted service to inspect current member display names',async()=>{await service();expect((await db.query<{names:string[]}>('select public.moderation_member_names() as names')).rows[0].names).toContain('체험student');});
 });
