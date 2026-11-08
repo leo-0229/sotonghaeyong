@@ -1,5 +1,5 @@
 import {createClient} from 'npm:@supabase/supabase-js@2.119.0';
-import {reviewContent} from '../_shared/ai-review.ts';
+import {reviewContent} from '../_shared/content-review.ts';
 import {BOARD_PREFIXES} from '../_shared/boards.ts';
 Deno.serve(async(req:Request)=>{
  const origin=req.headers.get('origin')??'';
@@ -35,12 +35,12 @@ Deno.serve(async(req:Request)=>{
   const admin=createClient(url,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
   const {error:rate}=await admin.rpc('reserve_post_check',{p_user:user.id});if(rate)return reply({error:'요청이 많습니다. 잠시 후 다시 시도하세요.'},429);
   const draft=kind==='post'&&input.draft===true;
-  const review=draft?{status:'DRAFT',reasons:[],aiVerified:false}:await reviewContent([prefix,title].filter(Boolean).join(' '),content,Deno.env.get('OPENAI_API_KEY'),Deno.env.get('OPENAI_MODEL'));
+  const review=draft?{status:'DRAFT',reasons:[],rulesVerified:false}:reviewContent([prefix,title].filter(Boolean).join(' '),content);
   let result;
-  if(kind==='post')result=await admin.rpc('store_moderated_post',{p_user:user.id,p_board:board,p_title:title.trim(),p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_id:input.editId??null,p_prefix:prefix,p_ai_verified:review.aiVerified});
-  else if(kind==='comment')result=await admin.rpc('store_moderated_comment',{p_user:user.id,p_post:input.postId,p_content:content.trim(),p_parent:input.parentId??null,p_status:review.status,p_reasons:review.reasons,p_ai_verified:review.aiVerified});
-  else if(kind==='suggestion')result=await admin.rpc('store_moderated_suggestion',{p_user:user.id,p_title:title.trim(),p_category:input.category,p_content:content.trim(),p_visibility:input.visibility,p_status:review.status,p_reasons:review.reasons,p_ai_verified:review.aiVerified});
-  else result=await admin.rpc('store_moderated_suggestion_reply',{p_user:user.id,p_suggestion:input.suggestionId,p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_ai_verified:review.aiVerified});
+  if(kind==='post')result=await admin.rpc('store_moderated_post',{p_user:user.id,p_board:board,p_title:title.trim(),p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_id:input.editId??null,p_prefix:prefix,p_rules_verified:review.rulesVerified});
+  else if(kind==='comment')result=await admin.rpc('store_moderated_comment',{p_user:user.id,p_post:input.postId,p_content:content.trim(),p_parent:input.parentId??null,p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
+  else if(kind==='suggestion')result=await admin.rpc('store_moderated_suggestion',{p_user:user.id,p_title:title.trim(),p_category:input.category,p_content:content.trim(),p_visibility:input.visibility,p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
+  else result=await admin.rpc('store_moderated_suggestion_reply',{p_user:user.id,p_suggestion:input.suggestionId,p_content:content.trim(),p_status:review.status,p_reasons:review.reasons,p_rules_verified:review.rulesVerified});
   if(result.error)return reply({error:'작성·수정 권한과 대상 글 상태를 확인하세요.'},400);
   return reply({id:result.data,status:review.status,reasons:review.reasons});
  }catch{return reply({error:'내용을 저장하지 못했습니다. 잠시 후 다시 시도하세요.'},500);}

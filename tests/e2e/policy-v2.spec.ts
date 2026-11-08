@@ -26,8 +26,8 @@ test('a teacher issues a temporary account and first login requires new credenti
 });
 test('council officers cannot issue temporary accounts',async({page})=>{await choose(page,'학생회 임원');await go(page,'/admin/accounts');await expect(page.getByRole('heading',{name:'접근 권한을 확인해 주세요'})).toBeVisible();});
 
-test('clean official posts still wait for another reviewer',async({page})=>{
- await choose(page,'담당 교사');await go(page,'/posts/write');await expect(page.getByText('규칙과 AI 검사 모두 통과하면 자동 공개됩니다.')).toBeVisible();await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('notice');await page.getByLabel('제목',{exact:true}).fill('정중한 임시 운영 공지');await page.getByLabel('내용',{exact:true}).fill('소통해용에서 함께 학교생활 이야기를 나누어요. 서로의 의견을 존중해 주세요.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await go(page,'/boards');await expect(page.getByRole('link',{name:/정중한 임시 운영 공지/})).toHaveCount(0);await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'정중한 임시 운영 공지'}).getByRole('button',{name:'승인 후 공개'}).click();await go(page,'/boards');await expect(page.getByRole('link',{name:/정중한 임시 운영 공지/})).toBeVisible();
+test('teacher references wait for another reviewer',async({page})=>{
+ await choose(page,'담당 교사');await go(page,'/posts/write');await expect(page.getByText('규칙 검사를 통과하면 자동 공개됩니다.')).toBeVisible();await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('notice');await page.getByLabel('제목',{exact:true}).fill('선생님 관련 임시 운영 공지');await page.getByLabel('내용',{exact:true}).fill('소통해용에서 함께 학교생활 이야기를 나누어요. 서로의 의견을 존중해 주세요.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await go(page,'/boards');await expect(page.getByRole('link',{name:/선생님 관련 임시 운영 공지/})).toHaveCount(0);await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'선생님 관련 임시 운영 공지'}).getByRole('button',{name:'승인 후 공개'}).click();await go(page,'/boards');await expect(page.getByRole('link',{name:/선생님 관련 임시 운영 공지/})).toBeVisible();
 });
 
 test('L5 can issue several accounts at the same level',async({page})=>{
@@ -105,12 +105,11 @@ test('authors edit approved posts and board-specific prefixes then receive reapp
  await choose(page,'일반 학생');await go(page,'/posts/write');
  await page.getByRole('combobox',{name:'게시판',exact:true}).selectOption('question');await expect(page.getByRole('combobox',{name:'말머리',exact:true})).toHaveValue('궁금해용');
  await page.getByLabel('제목',{exact:true}).fill('질문 게시글 수정 확인');await page.getByLabel('내용',{exact:true}).fill('학교 도서관을 이용하는 방법을 알고 싶습니다.');
- await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();
+ await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true})).toHaveCount(0);
  const postPath=new URL(page.url()).hash.slice(1);
- await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'질문 게시글 수정 확인'}).getByRole('button',{name:'승인 후 공개'}).click();
  await choose(page,'일반 학생');await go(page,postPath);await page.locator('.article-actions').getByRole('button',{name:'하트 누르기'}).click();await expect(page.locator('.article-actions').getByRole('button',{name:'하트 취소'})).toContainText('1');
- await page.getByRole('link',{name:'글·말머리 수정'}).click();await page.getByRole('combobox',{name:'말머리',exact:true}).selectOption('해결됐어용');await page.getByLabel('내용',{exact:true}).fill('학교 도서관 이용 방법을 확인했고 해결했습니다.');
- await page.getByRole('button',{name:'수정 후 승인 요청',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.locator('.article-category')).toContainText('해결됐어용');
+ await page.getByRole('link',{name:'글·말머리 수정'}).click();await page.getByRole('combobox',{name:'말머리',exact:true}).selectOption('해결됐어용');await page.getByLabel('내용',{exact:true}).fill('선생님과 학교 도서관 이용 방법을 확인했고 해결했습니다.');
+ await page.getByRole('button',{name:'수정 내용 저장',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();await expect(page.locator('.article-category')).toContainText('해결됐어용');
  await choose(page,'학급 대표 · 반장');await go(page,'/boards/question');await expect(page.getByRole('link',{name:/질문 게시글 수정 확인/})).toHaveCount(0);
  await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'질문 게시글 수정 확인'}).getByRole('button',{name:'승인 후 공개'}).click();
  await go(page,'/boards/question');await page.getByRole('combobox',{name:'말머리 필터'}).selectOption('value:해결됐어용');await expect(page.getByRole('link',{name:/질문 게시글 수정 확인/})).toBeVisible();
@@ -119,14 +118,18 @@ test('authors edit approved posts and board-specific prefixes then receive reapp
 
 test('comments support hearts and one-level replies',async({page})=>{
  await choose(page,'일반 학생');await go(page,'/posts/post-4');await page.getByLabel('댓글 내용',{exact:true}).fill('댓글과 답글을 확인하는 내용입니다.');await page.getByRole('button',{name:'댓글 등록',exact:true}).click();
- await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.comment-review').filter({hasText:'댓글과 답글을 확인하는 내용입니다.'}).getByRole('button',{name:'댓글 승인',exact:true}).click();
  await choose(page,'학급 대표 · 반장');await go(page,'/posts/post-4');const comment=page.locator('.comment').filter({hasText:'댓글과 답글을 확인하는 내용입니다.'});await comment.getByRole('button',{name:'하트 누르기'}).click();await expect(comment.getByRole('button',{name:'하트 취소'})).toContainText('1');await comment.getByRole('button',{name:'답글',exact:true}).click();await page.getByLabel('답글 내용',{exact:true}).fill('원래 댓글에 연결된 답글입니다.');await page.getByRole('button',{name:'답글 등록',exact:true}).click();await expect(page.getByText('원래 댓글에 연결된 답글입니다.',{exact:true})).toBeVisible();
 });
 
-test('public suggestions are reviewed and private questions stay private',async({page})=>{
+test('clean public suggestions publish and private questions stay private',async({page})=>{
  await choose(page,'일반 학생');await go(page,'/suggestions/new');await page.getByLabel('공개 범위').selectOption('PUBLIC');await page.getByLabel('제목',{exact:true}).fill('공개 건의함 질문 검증');await page.getByLabel('건의 내용').fill('도서관의 이용 시간을 학생들에게 안내해 주세요.');await page.getByRole('button',{name:'건의·질문 등록'}).click();await expect(page.getByRole('link',{name:'공개 건의함 질문 검증'})).toBeVisible();
- await choose(page,'학생회 임원');await go(page,'/admin/posts');await page.locator('.post-review').filter({hasText:'공개 건의함 질문 검증'}).getByRole('button',{name:'승인',exact:true}).click();
  await choose(page,'학급 대표 · 반장');await go(page,'/suggestions');await page.getByRole('link',{name:'공개 건의함 질문 검증'}).click();await expect(page.getByRole('heading',{name:'공개 건의함 질문 검증'})).toBeVisible();await expect(page.getByLabel('학생회 답변',{exact:true})).toHaveCount(0);
  await choose(page,'일반 학생');await go(page,'/suggestions/new');await page.getByLabel('공개 범위').selectOption('PRIVATE');await page.getByLabel('제목',{exact:true}).fill('비공개 건의함 질문 검증');await page.getByLabel('건의 내용').fill('학생회 담당자에게만 전달하는 비공개 문의입니다.');await page.getByRole('button',{name:'건의·질문 등록'}).click();await expect(page.getByRole('link',{name:'비공개 건의함 질문 검증'})).toBeVisible();
  await choose(page,'학급 대표 · 반장');await go(page,'/suggestions');await expect(page.getByRole('link',{name:'비공개 건의함 질문 검증'})).toHaveCount(0);
+});
+
+test('clean posts publish immediately and flagged edits return to review',async({page})=>{
+ await choose(page,'일반 학생');await go(page,'/posts/write');await page.getByLabel('제목',{exact:true}).fill('자동 공개되는 학교 이야기');await page.getByLabel('내용',{exact:true}).fill('도서관에서 친구들과 함께 책을 읽었습니다.');await page.getByRole('button',{name:'게시글 등록',exact:true}).click();await expect(page.locator('.article h1')).toHaveText('자동 공개되는 학교 이야기');await expect(page.getByText('승인 대기',{exact:true})).toHaveCount(0);
+ await go(page,'/boards');await expect(page.getByRole('link',{name:/자동 공개되는 학교 이야기/})).toBeVisible();await page.getByRole('link',{name:/자동 공개되는 학교 이야기/}).click();await page.getByRole('link',{name:'글·말머리 수정'}).click();await page.getByLabel('내용',{exact:true}).fill('쌤과 도서관에서 함께 책을 읽었습니다.');await page.getByRole('button',{name:'수정 내용 저장',exact:true}).click();await expect(page.getByText('승인 대기',{exact:true}).first()).toBeVisible();
+ await choose(page,'학급 대표 · 반장');await go(page,'/boards');await expect(page.getByRole('link',{name:/자동 공개되는 학교 이야기/})).toHaveCount(0);
 });

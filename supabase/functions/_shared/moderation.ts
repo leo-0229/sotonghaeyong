@@ -1,6 +1,5 @@
 import {ABUSIVE_TERMS,SEXUAL_TERMS,ABUSIVE_INITIALS} from './content-rules.ts';
 
-export interface ModerationDecision { safe: boolean; reasons: string[]; uncertain: boolean }
 const CHO='ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
 const JUNG='ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ';
 const JONG=['','ㄱ','ㄲ','ㄳ','ㄴ','ㄵ','ㄶ','ㄷ','ㄹ','ㄺ','ㄻ','ㄼ','ㄽ','ㄾ','ㄿ','ㅀ','ㅁ','ㅂ','ㅄ','ㅅ','ㅆ','ㅇ','ㅈ','ㅊ','ㅋ','ㅌ','ㅍ','ㅎ'];
@@ -36,6 +35,8 @@ export function localModeration(title:string,content:string,_teacherNames:string
   .replace(/정자(?=동|역|\s*(?:에서|에)\s*(?:쉬|앉))/gu,'쉼터'));
  const versions=normalized.flatMap(field=>[jamo(field),jamo(field,true)]);
  const text=fields.join('\n');
+ const teacherTerms=['쌤','썜','선생','교사'].map(term=>jamo(term));
+ if(versions.some(value=>teacherTerms.some(term=>value.includes(term))))reasons.push('교사 호칭 포함 · 운영진 확인 필요');
  const rawRuns=(title+'\n'+content).normalize('NFC').match(/[ㄱ-ㅎㅏ-ㅣ\u1100-\u11ff]+/gu)??[];
  if(versions.some(value=>profanity.some(term=>value.includes(term)))||rawRuns.some(run=>initials.some(term=>jamo(run).includes(term)))||/(?:^|[^a-z])(?:f[\W\d_]*u[\W\d_]*c[\W\d_]*k(?:ing|er|you)?|s[\W\d_]*h[\W\d_]*i[\W\d_]*t|bitch|asshole|motherfucker|cunt|slut|whore|retard(?:ed)?|nigg(?:er|a)|faggot)(?=$|[^a-z])/iu.test(text))reasons.push('욕설·혐오 의심 표현');
  if(versions.some(value=>sexual.some(term=>value.includes(term)))||/(?:^|[^a-z])(?:s[\W\d_]*e[\W\d_]*x|p[\W\d_]*o[\W\d_]*r[\W\d_]*n(?:ography)?|hentai|penis|vagina|masturbat\w*|blowjob|pussy|dick|nudes?)(?=$|[^a-z])/iu.test(text))reasons.push('성적·성 관련 민감 표현');
@@ -47,6 +48,6 @@ export function localModeration(title:string,content:string,_teacherNames:string
  if(/(?:너(?:는|희)?|너네|니네|쟤|걔|이|저)\s*(?:새끼|놈|년|돼지|고아)|(?:죽어|못생겼|멍청|왕따\s*시키|쓰레기\s*(?:같|새끼)|한심)/u.test(text))reasons.push('타인 비방 의심 표현');
  return [...new Set(reasons)];
 }
-export function publicationStatus(ruleReasons:string[],ai:ModerationDecision|null):'PENDING'|'APPROVED'{
- return ruleReasons.length===0&&ai?.safe===true&&ai.uncertain===false&&ai.reasons.length===0?'APPROVED':'PENDING';
+export function publicationStatus(ruleReasons:string[]):'PENDING'|'APPROVED'{
+ return ruleReasons.length===0?'APPROVED':'PENDING';
 }

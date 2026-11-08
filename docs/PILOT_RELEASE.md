@@ -61,7 +61,7 @@ GitHub Actions Variables에는 `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE
 
 ## 글 공개 정책
 
-모든 게시글은 `DRAFT → PENDING → 운영진 검토 → APPROVED/REJECTED` 순서입니다. 학생·임원·교사·공지 모두 같으며 자신의 글은 승인할 수 없습니다. 댓글도 승인 후 공개됩니다. 규칙·AI 결과는 검토 보조 정보이고 자동 공개 권한이 없습니다. AI 키는 이 정책을 위해 필수인 설정이 아닙니다.
+현재는 서버 규칙 검사를 통과한 게시글·댓글이 자동 공개됩니다. 욕설·교사 호칭 등 검사에 걸린 내용은 PENDING으로 보관하고 다른 운영진이 검토합니다. AI 서비스와 API 키는 사용하지 않습니다.
 
 브라우저와 Edge Function뿐 아니라 DB의 `store_moderated_post`도 `APPROVED`를 거부합니다. 승인 담당자(L3 이상)가 별도 `review_post`를 실행해야 공개됩니다. 기존 승인 글을 일괄 비공개로 바꾸지는 않으며 변경 후 신규 작성·재요청부터 이 정책을 따릅니다.
 

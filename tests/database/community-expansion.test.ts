@@ -24,7 +24,7 @@ async function match(){
  await actor(ids.student);await mutate('apply_mentoring',{application:{id:mentee,kind:'멘티',goal:'학교생활에 도움을 받고 싶습니다.'}});
  await actor(ids.officer);await mutate('match_mentoring',{ids:[mentor,mentee]});
 }
-describe('board editing and AI publication',()=>{
+describe('board editing and rule publication',()=>{
  it('keeps revisions, original creation time and requeues approved edits',async()=>{
   await db.query("update public.posts set status='APPROVED',prefix='예전말머리' where id=$1",[ids.post]);
   const before=(await db.query<{created_at:Date}>('select created_at from public.posts where id=$1',[ids.post])).rows[0].created_at;
@@ -32,8 +32,8 @@ describe('board editing and AI publication',()=>{
   const post=(await db.query('select status,prefix,created_at from public.posts where id=$1',[ids.post])).rows[0];expect(post).toMatchObject({status:'PENDING',prefix:'함께해용',created_at:before});
   expect((await db.query('select prefix,previous_status from public.post_revisions where post_id=$1',[ids.post])).rows[0]).toMatchObject({prefix:'예전말머리',previous_status:'APPROVED'});
  });
- it('requires a trusted clean AI decision for automatic publication',async()=>{await expect(savePost(ids.student,'APPROVED')).rejects.toThrow('AI_OR_HUMAN_APPROVAL_REQUIRED');});
- it('allows the trusted AI service to approve a clean post',async()=>{const id=await savePost(ids.student,'APPROVED',null,'이야기해용',true);await actor(ids.president);expect((await db.query('select id from public.posts where id=$1',[id])).rows).toHaveLength(1);});
+ it('requires a trusted clean server decision for automatic publication',async()=>{await expect(savePost(ids.student,'APPROVED')).rejects.toThrow('RULE_OR_HUMAN_APPROVAL_REQUIRED');});
+ it('allows the trusted rule service to approve a clean post',async()=>{const id=await savePost(ids.student,'APPROVED',null,'이야기해용',true);await actor(ids.president);expect((await db.query('select id from public.posts where id=$1',[id])).rows).toHaveLength(1);});
  it('does not let another user edit a post',async()=>{await expect(savePost(ids.president,'PENDING',ids.post)).rejects.toThrow('NOT_EDITABLE_POST');});
  it('does not let authors bypass a moderator hide',async()=>{await db.query("update public.posts set status='HIDDEN' where id=$1",[ids.post]);await expect(savePost(ids.student,'PENDING',ids.post)).rejects.toThrow('NOT_EDITABLE_POST');});
  it('does not collect teacher names through legacy settings',async()=>{await actor(ids.teacher);await expect(mutate('moderation_settings',{teacherNames:['가상교사']})).rejects.toThrow('TEACHER_NAME_CHECK_DISABLED');});

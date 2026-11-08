@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { createSeed } from '@/lib/seed';
 import { demoAllowed, supabase } from '@/lib/supabase/browser';
 import { cloudMutation } from '@/lib/backend';
-import { localModeration } from '@/lib/moderation';
+import { localModeration,publicationStatus } from '@/lib/moderation';
 import {BOARD_PREFIXES} from '../../supabase/functions/_shared/boards';
 import {authEmail,normalizeLoginId,parseStudentId,temporaryCredentials,validateCredentials} from '@/lib/accounts';
 import { ROLE_INFO, canManageTask, canReadSuggestion, canReview, isTeacher, isCouncil, level, postSchema, submitForClass, suggestionSchema, type AppState, type Member, type Role, type SubmissionStatus } from '@/lib/domain';
@@ -157,17 +157,17 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   async function createPost(input: { board: string; title: string; content: string; prefix?: string }, draft = false, editId?: string) {
     const parsed = postSchema.parse(input);parsed.prefix=parsed.prefix||BOARD_PREFIXES[parsed.board]?.[0]||''; const id = editId ?? uid();
     if(supabase){
-      setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{...parsed,draft,editId}});if(error)throw new Error('게시글을 저장하지 못했습니다. 검토 서버 연결을 확인해 주세요.');await refresh();notify(draft?'임시 저장했습니다.':data.status==='APPROVED'?'AI 검토를 통과해 공개되었습니다.':'승인 대기로 저장했습니다.');return data.id as string;}finally{setBusy(false);}
+      setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{...parsed,draft,editId}});if(error)throw new Error('게시글을 저장하지 못했습니다. 검토 서버 연결을 확인해 주세요.');await refresh();notify(draft?'임시 저장했습니다.':data.status==='APPROVED'?'규칙 검사를 통과해 공개되었습니다.':'승인 대기로 저장했습니다.');return data.id as string;}finally{setBusy(false);}
     }
     await commit((s, m) => {
       if (['notice', 'council', 'report'].includes(parsed.board) && level(m) < 4) throw new Error('공식 게시판은 LEVEL 4 이상만 작성할 수 있습니다.');
       const previous = s.posts.find(p => p.id === id);
       if (previous && (previous.authorId !== m.id || !['DRAFT', 'REJECTED', 'PENDING', 'APPROVED'].includes(previous.status))) throw new Error('본인 글만 수정할 수 있으며 숨김 처리된 글은 운영진에게 문의해 주세요.');
       const reasons=localModeration([parsed.prefix,parsed.title].filter(Boolean).join(' '),parsed.content);
-      const post = { ...previous, ...parsed, id, authorId: m.id, author: m.name, date: previous?.date??stamp(), updatedAt:stamp(), status: draft ? 'DRAFT' as const : 'PENDING' as const, moderationReasons:[...reasons,'전체 게시글 운영진 승인 필요'], comments: previous?.comments ?? [], views: previous?.views ?? 0, reason: undefined };
+      const post = { ...previous, ...parsed, id, authorId: m.id, author: m.name, date: previous?.date??stamp(), updatedAt:stamp(), status: draft ? 'DRAFT' as const : publicationStatus(reasons), moderationReasons:reasons, comments: previous?.comments ?? [], views: previous?.views ?? 0, reason: undefined };
       return addLog({ ...s, posts: previous ? s.posts.map(p => p.id === id ? post : p) : [post, ...s.posts] }, m, `${draft ? '글 임시 저장' : '글 승인 요청'}: ${post.title}`);
     });
-    notify(draft ? '글을 임시 저장했습니다.' : '승인을 요청했습니다. 검토 후 공개됩니다.'); return id;
+    notify(draft ? '글을 임시 저장했습니다.' : publicationStatus(localModeration([parsed.prefix,parsed.title].join(' '),parsed.content))==='APPROVED'?'규칙 검사를 통과해 공개되었습니다.':'승인 대기로 저장했습니다.'); return id;
   }
   async function reviewPost(id: string, approve: boolean, reason?: string) {
     await commit((s, m) => {
@@ -206,7 +206,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   async function createComment(postId:string,content:string,parentId?:string){
     if(content.trim().length<2||content.length>2000)throw new Error('댓글은 2~2000자로 입력하세요.');
     if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'comment',postId,content,parentId}});if(error)throw new Error('댓글을 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'댓글이 공개되었습니다.':'댓글 승인을 요청했습니다.');}finally{setBusy(false);}return;}
-    await commit((s,m)=>{const post=s.posts.find(p=>p.id===postId);if(!post||post.status!=='APPROVED')throw new Error('공개된 글에 댓글을 작성하세요.');return {...s,posts:s.posts.map(p=>p.id===postId?{...p,comments:[...p.comments,{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:'PENDING',parentId,moderationReasons:localModeration('',content)}]}:p)};});notify('댓글 승인을 요청했습니다.');
+    await commit((s,m)=>{const post=s.posts.find(p=>p.id===postId);if(!post||post.status!=='APPROVED')throw new Error('공개된 글에 댓글을 작성하세요.');return {...s,posts:s.posts.map(p=>p.id===postId?{...p,comments:[...p.comments,{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:publicationStatus(localModeration('',content)),parentId,moderationReasons:localModeration('',content)}]}:p)};});notify(publicationStatus(localModeration('',content))==='APPROVED'?'댓글이 공개되었습니다.':'댓글 승인을 요청했습니다.');
   }
   async function toggleHeart(kind:'post'|'comment',id:string){
     if(supabase){const {error}=await supabase.rpc('toggle_heart',{p_kind:kind,p_id:id});if(error)throw new Error('하트를 변경하지 못했습니다. 공개된 글·댓글인지 확인하세요.');await refresh();return;}
@@ -218,13 +218,13 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   async function createSuggestion(input:{title:string;category:string;content:string;visibility?:'PUBLIC'|'PRIVATE'}){
     const parsed=suggestionSchema.parse(input);
     if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'suggestion',...parsed}});if(error)throw new Error('건의를 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'건의를 접수했습니다.':'건의를 접수했습니다. 공개 글은 검토 후 표시됩니다.');}finally{setBusy(false);}return;}
-    await commit((s,m)=>({...s,suggestions:[{...parsed,id:uid(),authorId:m.id,status:'접수 완료',publicationStatus:'PENDING',date:stamp()},...s.suggestions]}));notify('건의를 접수했습니다.');
+    await commit((s,m)=>({...s,suggestions:[{...parsed,id:uid(),authorId:m.id,status:'접수 완료',publicationStatus:publicationStatus(localModeration(parsed.title,parsed.content)),moderationReasons:localModeration(parsed.title,parsed.content),date:stamp()},...s.suggestions]}));notify('건의를 접수했습니다.');
   }
   async function replySuggestion(id:string,content:string){
     if(!isCouncil(ref.current.members.find(m=>m.id===ref.current.currentMemberId)))throw new Error('학생회 임원만 답변할 수 있습니다.');
     if(content.trim().length<5)throw new Error('답변은 5자 이상 입력하세요.');
     if(supabase){setBusy(true);try{const {data,error}=await supabase.functions.invoke('moderate-post',{body:{kind:'suggestion-reply',suggestionId:id,content}});if(error)throw new Error('답변을 저장하지 못했습니다.');await refresh();notify(data.status==='APPROVED'?'답변이 공개되었습니다.':'답변 승인을 요청했습니다.');}finally{setBusy(false);}return;}
-    await commit((s,m)=>({...s,suggestions:s.suggestions.map(item=>item.id===id?{...item,replies:[...(item.replies??[]),{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:'PENDING'}]}:item)}));notify('답변 승인을 요청했습니다.');
+    await commit((s,m)=>({...s,suggestions:s.suggestions.map(item=>item.id===id?{...item,replies:[...(item.replies??[]),{id:uid(),authorId:m.id,author:m.name,content:content.trim(),date:stamp(),status:publicationStatus(localModeration('',content))}]}:item)}));notify(publicationStatus(localModeration('',content))==='APPROVED'?'답변이 공개되었습니다.':'답변 승인을 요청했습니다.');
   }
   async function reviewSuggestionContent(kind:'suggestion'|'suggestion-reply',id:string,approve:boolean){
     if(supabase){const {error}=await supabase.rpc('review_suggestion_content',{p_kind:kind,p_id:id,p_decision:approve?'APPROVED':'REJECTED'});if(error)throw new Error('다른 운영진이 검토해야 합니다.');await refresh();return;}

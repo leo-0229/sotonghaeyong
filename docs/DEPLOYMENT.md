@@ -1,6 +1,6 @@
 # GitHub Pages + Supabase 연결 순서
 
-2026-11-08 GitHub 저장소 공개와 [Pages 임시 배포](https://leo-0229.github.io/sotonghaeyong/)를 완료했습니다. Supabase 로그인은 연결되었습니다. AI API는 미연결 상태이며, 아래는 새 환경에서 같은 구성을 만드는 절차입니다. 최신 정책은 [게시판·소통 기능](COMMUNITY_UPDATE.md)을 따릅니다.
+2026-11-08 GitHub 저장소 공개와 [Pages 임시 배포](https://leo-0229.github.io/sotonghaeyong/)를 완료했습니다. Supabase 로그인은 연결되었습니다. AI API 없이 규칙 검사로 자동 공개하며, 아래는 새 환경에서 같은 구성을 만드는 절차입니다. 최신 정책은 [게시판·소통 기능](COMMUNITY_UPDATE.md)을 따릅니다.
 
 ## 1. 데이터베이스
 
@@ -23,6 +23,7 @@ supabase/migrations/202611080013_council_channel_and_mentor_contacts.sql
 supabase/migrations/202611080014_public_suggestions_and_submission_directory.sql
 supabase/migrations/202611080015_community_snapshot_and_workflows.sql
 supabase/migrations/202611080016_channel_notification_links.sql
+supabase/migrations/202611080017_rule_only_publication.sql
 ```
 
 002는 기존 학급 제출의 보완·접수 확정 상태를 `SUBMITTED`로 바꿉니다. 이전 과목별 멘토링 테이블은 이력 기반으로 남지만 새 화면은 `school_life_mentoring`을 사용합니다. 운영 이력이 있다면 먼저 백업과 기존 매칭 검토가 필요합니다.
@@ -50,7 +51,7 @@ NEXT_PUBLIC_ENABLE_DEMO=false
 
 ## 4. 검토 보조 Edge Function
 
-[OpenAI 공식 Structured Outputs 문서](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=responses)를 기준으로 Responses API를 호출합니다. API 프로젝트에서 사용 가능한 Structured Outputs 지원 모델을 선택해 `OPENAI_MODEL`에 지정하세요. 학교의 외부 AI 전송 검토와 API 비용 확인이 필요합니다.
+외부 AI를 사용하지 않습니다. 별도 API 키와 AI 결제 설정 없이 서버의 규칙 검사만 사용합니다.
 
 `supabase/functions/.env.example`을 `.env.local`로 복사하고 Edge Function 비밀 설정을 등록한 뒤 배포합니다.
 
@@ -62,17 +63,15 @@ supabase functions deploy moderate-post
 supabase functions deploy account-access
 ```
 
-서버 설정 (AI 관련 두 값은 선택 사항):
+서버 설정:
 
-- `OPENAI_API_KEY`: 서버 전용 API 키.
-- `OPENAI_MODEL`: 사용 가능한 Structured Outputs 지원 모델.
 - `ALLOWED_ORIGINS`: `https://YOUR-NAME.github.io,http://127.0.0.1:3000`처럼 허용 출처를 쉼표로 구분. `/mpms/` 같은 경로는 포함하지 않습니다.
 
 `supabase/config.toml`은 게이트웨이 구형 JWT 검증 대신 **함수 내부 `Auth.getUser(token)` 검증**을 사용합니다. 토큰 검증과 ACTIVE 확인을 생략하지 않습니다.
 
-교사명 검사는 현재 사용하지 않습니다. AI에는 제목·본문만 전송하고 `store: false`를 요청합니다. 이는 외부 서비스의 모든 보유 정책을 대체하지 않습니다.
+교사 개인 성함 명단은 수집하지 않습니다. 쌤·썜·선생님·선생·교사라는 호칭은 승인 대기로 보냅니다.
 
-규칙 검사와 AI 결과가 모두 명확히 안전한 경우만 자동 승인합니다. AI 미연결·오류·의심 결과는 운영진 검토 대기입니다. 규칙에 걸린 글은 자동 공개하지 않습니다.
+서버 규칙 검사에 걸리지 않으면 자동 공개합니다. 욕설·혐오·성적 표현·교사 호칭·외부 링크·연락처 등은 운영진 검토 대기입니다.
 
 ## 5. GitHub Pages 배포
 
@@ -89,9 +88,9 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
 ## 6. 실제 연결 후 확인
 
-로컬 테스트는 Auth 스키마를 대역으로 사용하므로 실제 Supabase 통합을 대체하지 않습니다. 실제 환경에서 비로그인/PENDING/정지 계정 차단, 다른 반 제출 차단, 두 대표의 동시 수정 충돌, 마감 차단, AI 오류 시 승인 대기, 동성 1:1 중복 차단, 비공개 건의 권한, 공약 저장, 모바일·Pages 하위 경로 새로고침을 확인하세요.
+로컬 테스트는 Auth 스키마를 대역으로 사용하므로 실제 Supabase 통합을 대체하지 않습니다. 실제 환경에서 비로그인/PENDING/정지 계정 차단, 다른 반 제출 차단, 두 대표의 동시 수정 충돌, 마감 차단, 규칙 일치 시 승인 대기, 동성 1:1 중복 차단, 비공개 건의 권한, 공약 저장, 모바일·Pages 하위 경로 새로고침을 확인하세요.
 
-학교 운영 승인, 개인정보 처리·보유·파기 기준, 미성년자 관련 절차, AI 전송 정책은 학교가 확정해야 합니다. 파일 첨부는 비활성화 상태입니다. 실제 서비스 이용 요금과 약관은 배포 시점 공식 문서에서 확인하세요.
+학교 운영 승인, 개인정보 처리·보유·파기 기준, 미성년자 관련 절차, 서비스 운영 정책은 학교가 확정해야 합니다. 파일 첨부는 비활성화 상태입니다. 실제 서비스 이용 요금과 약관은 배포 시점 공식 문서에서 확인하세요.
 
 ## 아이톡톡
 
