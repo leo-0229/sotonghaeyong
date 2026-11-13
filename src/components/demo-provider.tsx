@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { createSeed } from '@/lib/seed';
+import {viewDate} from '@/lib/post-views';
 import { demoAllowed, supabase } from '@/lib/supabase/browser';
 import { cloudMutation } from '@/lib/backend';
 import { localModeration,publicationStatus } from '@/lib/moderation';
@@ -22,6 +23,7 @@ interface DemoContextValue {
   switchMember: (id: string | null) => Promise<void>; reset: () => void;
   createPost: (input: { board: string; title: string; content: string; prefix?: string }, draft?: boolean, editId?: string) => Promise<string>;
   refreshData:()=>Promise<void>;
+  recordPostView:(id:string)=>Promise<void>;
   editContent:(kind:'suggestion'|'suggestion-reply'|'comment',id:string,content:string,expectedUpdatedAt:string,details?:{title:string;category:string;visibility:'PUBLIC'|'PRIVATE'})=>Promise<void>;
   createComment:(postId:string,content:string,parentId?:string)=>Promise<void>;
   toggleHeart:(kind:'post'|'comment',id:string)=>Promise<void>;
@@ -106,6 +108,22 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     if (!actor || !level(actor)) throw new Error('승인된 체험 계정을 선택해 주세요.');
     persist(update({ ...latest, currentMemberId: actor.id }, actor));
   }, [persist,refresh]);
+  const recordPostView=useCallback(async(id:string)=>{
+    const viewer=ref.current.members.find(m=>m.id===ref.current.currentMemberId);
+    if(!level(viewer))return;
+    if(supabase){
+      const {data,error}=await supabase.rpc('record_post_view',{p_post:id});
+      if(error)throw new Error('조회수를 반영하지 못했습니다. 잠시 후 다시 확인해 주세요.');
+      if(ref.current.currentMemberId!==viewer!.id)return;
+      const next={...ref.current,posts:ref.current.posts.map(p=>p.id===id?{...p,views:Math.max(p.views,data as number)}:p)};
+      ref.current=next;setState(next);return;
+    }
+    await commit((s,m)=>{
+      const post=s.posts.find(p=>p.id===id);const date=viewDate();const key=m.id+':'+id;
+      if(!post||post.status!=='APPROVED'||post.authorId===m.id||s.demoPostViews?.[key]===date)return s;
+      return {...s,demoPostViews:{...s.demoPostViews,[key]:date},posts:s.posts.map(p=>p.id===id?{...p,views:p.views+1}:p)};
+    });
+  },[commit]);
   const signIn=async(email:string,password:string)=>{
     if(!supabase) throw new Error('운영 계정 서버가 설정되지 않았습니다.');
     const id=normalizeLoginId(email);const loginEmail=id.includes('@')?id:authEmail(id);
@@ -296,7 +314,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,recordPostView,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }

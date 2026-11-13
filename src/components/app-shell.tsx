@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 
 const groups: {title:string;min?:number;items:[string,string,LucideIcon,string?][]}[]=[
  {title:'학교 소식',items:[['전체 공지','/announcements',Megaphone],['학교 행사','/events',CalendarDays],['학생회 활동 보고','/boards/report',ClipboardCheck]]},
- {title:'게시판',items:[['전체 게시글','/boards',List],['자유게시판','/boards/free',MessagesSquare],['질문게시판','/boards/question',MessageCircle],['정보공유','/boards/info',BookOpen],['분실물 게시판','/boards/lost',Search],['노래 추천','/boards/music',BookOpen]]},
+ {title:'게시판',items:[['전체 게시글','/boards',List],['인기글','/popular',ChartNoAxesCombined],['자유게시판','/boards/free',MessagesSquare],['질문게시판','/boards/question',MessageCircle],['정보공유','/boards/info',BookOpen],['분실물 게시판','/boards/lost',Search],['노래 추천','/boards/music',BookOpen]]},
  {title:'학생 참여',items:[['전자 건의함','/suggestions',Mail],['학생회 채널','/council-channel',MessagesSquare],['멘토·멘티','/mentoring',Users],['설문조사','/surveys',Vote],['공약 이행 현황','/pledges',ChartNoAxesCombined]]},
  {title:'학급 제출',items:[['업무·제출 현황','/class-tasks',ClipboardList],['내 학급 제출','/class-tasks/my-submissions',CheckCheck]]},
  {title:'내 활동',items:[['내가 쓴 글','/mypage',PenLine],['알림','/notifications',Bell]]},

@@ -9,7 +9,7 @@
 ## 로컬 실행
 
 ```powershell
-cd C:\Users\user\Desktop\mpms
+cd D:\mpms
 npm.cmd ci
 npm.cmd run dev
 ```

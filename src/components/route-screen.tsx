@@ -26,6 +26,7 @@ export function RouteScreen({ segments }: { segments: string[] }) {
   if (route === 'login') return <LoginScreen/>;
   if (area === 'register') return <RegisterScreen status={id === 'status'}/>;
   if (route === 'search') return <BoardScreen search/>;
+  if (route === 'popular') return <BoardScreen popular/>;
   if (area === 'boards') return <BoardScreen key={id} board={id ?? 'all'}/>;
   if (route === 'announcements') return <BoardScreen board="notice"/>;
   if (area === 'posts') return id === 'write' ? <WriteScreen/> : <PostScreen id={id}/>;

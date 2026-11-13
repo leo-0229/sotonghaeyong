@@ -52,6 +52,26 @@ async function match(){
  await actor(ids.student);await mutate('apply_mentoring',{application:{id:mentee,kind:'멘티',goal:'학교생활에 도움을 받고 싶습니다.'}});
  await actor(ids.officer);await mutate('match_mentoring',{ids:[mentor,mentee]});
 }
+
+describe('authenticated daily post views',()=>{
+ async function publicPost(){await db.query("update public.posts set status='APPROVED',views=0 where id=$1",[ids.post]);}
+ const view=()=>db.query<{views:number}>('select public.record_post_view($1) as views',[ids.post]);
+ it('counts another member once and leaves content timestamps unchanged',async()=>{
+  await publicPost();const before=(await db.query('select created_at,updated_at from public.posts where id=$1',[ids.post])).rows[0];await actor(ids.president);expect((await view()).rows[0].views).toBe(1);expect((await view()).rows[0].views).toBe(1);
+  await db.exec('reset role');expect((await db.query('select created_at,updated_at from public.posts where id=$1',[ids.post])).rows[0]).toEqual(before);expect((await db.query('select * from app_private.post_view_receipts where post_id=$1',[ids.post])).rows).toHaveLength(1);
+ });
+ it('does not count the author',async()=>{await publicPost();await actor(ids.student);expect((await view()).rows[0].views).toBe(0);await db.exec('reset role');expect((await db.query('select * from app_private.post_view_receipts')).rows).toHaveLength(0);});
+ it('counts different members independently',async()=>{await publicPost();await actor(ids.president);await view();await actor(ids.vice);expect((await view()).rows[0].views).toBe(2);});
+ it('counts a return on a later Korean calendar day',async()=>{await publicPost();await actor(ids.president);await view();await db.exec('reset role');await db.query("update app_private.post_view_receipts set last_counted_on=(current_timestamp at time zone 'Asia/Seoul')::date-1 where post_id=$1",[ids.post]);await actor(ids.president);expect((await view()).rows[0].views).toBe(2);expect((await view()).rows[0].views).toBe(2);});
+ it.each(['DRAFT','PENDING','REJECTED','HIDDEN'])('does not count %s posts even for moderators',async(status)=>{await db.query('update public.posts set status=$2 where id=$1',[ids.post,status]);await actor(ids.teacher);await expect(view()).rejects.toThrow('PUBLIC_POST_REQUIRED');});
+ it('requires an active initialized account',async()=>{await publicPost();await actor(ids.pending);await expect(view()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('blocks suspended members',async()=>{await publicPost();await db.query("update public.profiles set status='SUSPENDED' where id=$1",[ids.president]);await actor(ids.president);await expect(view()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('blocks unfinished credential setup',async()=>{await publicPost();await db.query('update public.profiles set credentials_pending=true where id=$1',[ids.president]);await actor(ids.president);await expect(view()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('does not expose reader identities to a teacher or member',async()=>{await publicPost();await actor(ids.president);await view();await actor(ids.teacher);await expect(db.query('select * from app_private.post_view_receipts')).rejects.toThrow(/permission denied/);});
+ it('does not allow direct client counter updates',async()=>{await publicPost();await actor(ids.president);await expect(db.query('update public.posts set views=999 where id=$1',[ids.post])).rejects.toThrow(/permission denied/);});
+ it('does not grant anonymous execution',async()=>{await publicPost();await db.exec('set local role anon');await expect(view()).rejects.toThrow(/permission denied/);});
+ it('cleans the receipt when its post is deleted',async()=>{await publicPost();await actor(ids.president);await view();await actor(ids.student);await db.query("select public.delete_community_content('post',$1,'')",[ids.post]);await db.exec('reset role');expect((await db.query('select * from app_private.post_view_receipts where post_id=$1',[ids.post])).rows).toHaveLength(0);});
+});
 describe('board editing and rule publication',()=>{
  it('keeps revisions, original creation time and requeues approved edits',async()=>{
   await db.query("update public.posts set status='APPROVED',prefix='예전말머리' where id=$1",[ids.post]);

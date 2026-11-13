@@ -7,6 +7,8 @@
 .filters div { display:flex; gap:10px; flex-wrap:wrap; }
 .filters select { width:auto; max-width:210px; margin:0; }
 .sectionLinks { margin-top:22px; background:white; border:1px solid #dce2ed; }
+.popularPreview { margin-bottom:20px; }
+.popularPreview > p { padding:0 20px 14px; color:#526176; font-size:12px; }
 .sectionLinks h2 { padding:18px 20px; margin:0; font-size:15px; border-bottom:1px solid #e6ebf2; color:#20365e; }
 .sectionLinks a { display:grid; grid-template-columns:140px 1fr 20px; align-items:center; gap:16px; padding:15px 20px; border-bottom:1px solid #edf0f5; font-size:12px; }
 .sectionLinks a:last-child { border-bottom:0; }
