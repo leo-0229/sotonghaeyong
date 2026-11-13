@@ -13,6 +13,7 @@ import { ROLE_INFO, canManageTask, canReadSuggestion, canReview, isTeacher, isCo
 const STORAGE_KEY = 'mpms-draft-v2';
 type Update = (state: AppState, member: Member) => AppState;
 interface DemoContextValue {
+  reviewRevision:number;
   state: AppState; member: Member | undefined; ready: boolean; toast: string;
   mode: 'demo' | 'supabase' | 'unconfigured'; busy: boolean;
   signIn: (email: string, password: string) => Promise<void>;
@@ -50,6 +51,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState('');
   const [mode,setMode]=useState<'demo'|'supabase'|'unconfigured'>('unconfigured');
   const [busy,setBusy]=useState(false);
+  const [reviewRevision,setReviewRevision]=useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const notify = useCallback((message: string) => { setToast(message); clearTimeout(timer.current); timer.current = setTimeout(() => setToast(''), 4500); }, []);
   const persist = useCallback((next: AppState) => {
@@ -197,10 +199,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       if (!canReview(m)) throw new Error('게시글 승인 권한이 없습니다.');
       const post = s.posts.find(p => p.id === id);
       if (!post || post.authorId === m.id) throw new Error('자신이 작성한 글은 다른 운영진이 검토해야 합니다.');
-      if (post.status !== 'PENDING' && level(m) < 4) throw new Error('이미 처리된 글의 재검토는 LEVEL 4 이상만 가능합니다.');
-      if (!approve && !reason?.trim()) throw new Error('반려 사유를 입력해 주세요.');
-      return addLog({ ...s, posts: s.posts.map(p => p.id === id ? { ...p, status: approve ? 'APPROVED' : 'REJECTED', reason: approve ? undefined : reason } : p), notifications: [{ id: uid(), recipientId: post.authorId, title: `게시글이 ${approve ? '승인' : '반려'}되었습니다: ${post.title}`, href: `/posts/${id}`, read: false, date: stamp() }, ...s.notifications] }, m, `게시글 ${approve ? '승인' : '반려'}: ${post.title}`);
-    }); notify('게시글 검토 결과를 저장했습니다.');
+      if (post.status !== 'PENDING' && !(post.status==='REJECTED'&&approve) && level(m) < 4) throw new Error('공개·숨김 글의 재검토는 LEVEL 4 이상만 가능합니다.');
+      if (!approve && (!reason||reason.trim().length<2||reason.trim().length>1000)) throw new Error('반려 사유는 2~1000자로 입력해 주세요.');
+      return addLog({ ...s, posts: s.posts.map(p => p.id === id ? { ...p, status: approve ? 'APPROVED' : 'REJECTED', reason: approve ? undefined : reason!.trim(), rejection:approve?undefined:{reviewer:m.name,date:stamp(),reason:reason!.trim()} } : p), notifications: [{ id: uid(), recipientId: post.authorId, title: `게시글이 ${approve ? '승인' : '반려'}되었습니다: ${post.title}`, href: `/posts/${id}`, read: false, date: stamp() }, ...s.notifications] }, m, `게시글 ${approve ? '승인' : '반려'}: ${post.title}`);
+    }); setReviewRevision(n=>n+1); notify('게시글 검토 결과를 저장했습니다.');
   }
   async function saveSubmission(taskId: string, answers: Record<string, string>, version: number, draft: boolean) {
     if(supabase){
@@ -314,7 +316,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,recordPostView,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ reviewRevision,state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,recordPostView,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }
