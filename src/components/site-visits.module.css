@@ -1,0 +1,10 @@
+.panel {margin-top:24px;padding:18px 20px;}
+.heading {display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.heading h2 {font-size:15px;color:#20365e;}
+.heading button {font-size:12px;color:#425a79;background:none;border:1px solid #cdd6e2;border-radius:5px;padding:6px 9px;}
+.panel dl {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0;}
+.panel dl > div {text-align:center;background:#f5f7fb;border-radius:6px;padding:14px 5px;min-width:0;}
+.panel dt {font-size:12px;color:#53637c;overflow-wrap:anywhere;}
+.panel dd {margin:6px 0 0;font-size:24px;line-height:1.3;font-weight:700;color:#20365e;overflow-wrap:anywhere;}
+.panel p {font-size:11px;color:#53637c;line-height:1.7;}
+@media(max-width:420px){.panel {padding:16px 12px;}.panel dt {font-size:11px;}.panel dd {font-size:21px;}}

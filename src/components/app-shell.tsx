@@ -1,5 +1,6 @@
 'use client';
 import sidebarStyles from './sidebar-groups.module.css';
+import {SiteVisits} from './site-visits';
 
 import Link from '@/components/navigation';
 import { usePathname, useRouter } from '@/components/navigation';
@@ -48,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav>{groups.filter(g=>!g.min||activeLevel>=g.min).map(group=><details className={sidebarStyles.group} key={group.title} open={group.title==='학교 소식'||group.items.some(([,href])=>pathname===href)}><summary>{group.title}</summary>{group.items.map(([label,href,Icon])=><Link key={href} href={href} onClick={()=>setMobileOpen(false)} className={cn('nav-link',pathname===href&&'nav-active')}><Icon size={16}/><span>{label}</span></Link>)}</details>)}</nav>
         <div className="sidebar-help"><ShieldCheck size={18}/><div><strong>함께 지키는 커뮤니티</strong><p>서로를 존중하며 소통해요.</p><Link href="/guide" onClick={() => setMobileOpen(false)}>레벨별 이용 가이드 <ArrowUpRight size={12}/></Link></div></div>
       </aside>
-      <main id="main" className="main-content">{children}<footer className="footer"><div><strong>소통해용</strong><span>문산중학교 학생 자치 커뮤니티</span></div><nav><Link href="/terms">이용약관</Link><Link href="/privacy">개인정보 처리방침</Link><Link href="/guide">이용 가이드</Link></nav><p>{mode==='demo'?'© 2026 소통해용. 현재 표시된 회원·학교 일정은 모두 예시입니다.':'© 2026 소통해용. 승인된 문산중학교 회원 전용 커뮤니티입니다.'}</p></footer></main>
+      <main id="main" className="main-content">{children}<SiteVisits/><footer className="footer"><div><strong>소통해용</strong><span>문산중학교 학생 자치 커뮤니티</span></div><nav><Link href="/terms">이용약관</Link><Link href="/privacy">개인정보 처리방침</Link><Link href="/guide">이용 가이드</Link></nav><p>{mode==='demo'?'© 2026 소통해용. 현재 표시된 회원·학교 일정은 모두 예시입니다.':'© 2026 소통해용. 승인된 문산중학교 회원 전용 커뮤니티입니다.'}</p></footer></main>
     </div>
     <Button asChild className="mobile-write" aria-label="글쓰기"><Link href="/posts/write"><PenLine size={20}/></Link></Button>
     {toast && <div role="status" className="toast"><CheckCheck size={18}/>{toast}</div>}

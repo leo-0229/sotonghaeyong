@@ -88,6 +88,24 @@ describe('post rejection details and reconsideration',()=>{
  it('uses a truthful fallback for a deleted reviewer',async()=>{await actor(ids.officer);await reject();await db.exec('reset role');await db.query('delete from auth.users where id=$1',[ids.officer]);await actor(ids.student);expect((await info()).rows[0].data?.reviewer).toBe('탈퇴한 운영진');});
  it('does not grant anonymous access to the rejection RPC',async()=>{await db.exec('set local role anon');await expect(info()).rejects.toThrow(/permission denied/);});
 });
+
+describe('daily site visitor totals',()=>{
+ const visit=()=>db.query<{data:{date:string;today:number;peak:number;total:number}}>('select public.record_site_visit() as data');
+ it('starts at zero and counts the first member immediately',async()=>{await actor(ids.student);expect((await db.query<{data:{today:number;peak:number;total:number}}>('select public.site_visit_stats() as data')).rows[0].data).toMatchObject({today:0,peak:0,total:0});expect((await visit()).rows[0].data).toMatchObject({today:1,peak:1,total:1});});
+ it('deduplicates repeat visits, refreshes and multiple tabs',async()=>{await actor(ids.student);await visit();await visit();expect((await visit()).rows[0].data).toMatchObject({today:1,peak:1,total:1});await db.exec('reset role');expect((await db.query('select * from app_private.site_visit_receipts')).rows).toHaveLength(1);});
+ it('counts different members independently including administrators',async()=>{await actor(ids.student);await visit();await actor(ids.officer);await visit();await actor(ids.teacher);expect((await visit()).rows[0].data).toMatchObject({today:3,peak:3,total:3});});
+ it('retains peak and totals from earlier days',async()=>{await db.exec("insert into app_private.site_visit_days values((current_timestamp at time zone 'Asia/Seoul')::date-2,7),((current_timestamp at time zone 'Asia/Seoul')::date-1,3)");await actor(ids.student);expect((await visit()).rows[0].data).toMatchObject({today:1,peak:7,total:11});});
+ it('counts the same member again on a later day',async()=>{await actor(ids.student);await visit();await db.exec('reset role');await db.query("update app_private.site_visit_receipts set last_counted_on=(current_timestamp at time zone 'Asia/Seoul')::date-1 where viewer_id=$1",[ids.student]);await db.exec("update app_private.site_visit_days set visit_date=visit_date-1");await actor(ids.student);expect((await visit()).rows[0].data).toMatchObject({today:1,peak:1,total:2});});
+ it('does not reduce historical totals when a member account is deleted',async()=>{await actor(ids.student);await visit();await db.exec('reset role');await db.query('delete from auth.users where id=$1',[ids.student]);expect((await db.query('select * from app_private.site_visit_receipts')).rows).toHaveLength(0);await actor(ids.president);expect((await db.query<{data:{total:number}}>('select public.site_visit_stats() as data')).rows[0].data.total).toBe(1);});
+ it('uses a Korean calendar date',async()=>{await actor(ids.student);const result=(await visit()).rows[0].data;expect((await db.query<{matches:boolean}>("select $1::date=(current_timestamp at time zone 'Asia/Seoul')::date as matches",[result.date])).rows[0].matches).toBe(true);});
+ it('rejects pending accounts',async()=>{await actor(ids.pending);await expect(visit()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('rejects suspended accounts',async()=>{await db.query("update public.profiles set status='SUSPENDED' where id=$1",[ids.student]);await actor(ids.student);await expect(visit()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('rejects unfinished credential setup',async()=>{await db.query('update public.profiles set credentials_pending=true where id=$1',[ids.student]);await actor(ids.student);await expect(visit()).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');});
+ it('does not expose member receipts even to a teacher',async()=>{await actor(ids.teacher);await expect(db.query('select * from app_private.site_visit_receipts')).rejects.toThrow(/permission denied/);});
+ it('prevents direct client counter tampering',async()=>{await actor(ids.student);await expect(db.query("insert into app_private.site_visit_days values(current_date,999999)")).rejects.toThrow(/permission denied/);});
+ it('does not allow anonymous counting',async()=>{await db.exec('set local role anon');await expect(visit()).rejects.toThrow(/permission denied/);});
+ it('does not allow anonymous statistics access',async()=>{await db.exec('set local role anon');await expect(db.query('select public.site_visit_stats()')).rejects.toThrow(/permission denied/);});
+});
 describe('board editing and rule publication',()=>{
  it('keeps revisions, original creation time and requeues approved edits',async()=>{
   await db.query("update public.posts set status='APPROVED',prefix='예전말머리' where id=$1",[ids.post]);
