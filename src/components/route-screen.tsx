@@ -1,24 +1,40 @@
 'use client';
 import Link from '@/components/navigation';
+import dynamic from 'next/dynamic';
 import { useDemo } from './demo-provider';
 import { BoardScreen, HomeScreen, PostScreen, WriteScreen } from './community';
 import { LoginScreen, MyPageScreen, NotificationsScreen, RegisterScreen } from './account';
-import { TaskCreateScreen, TaskDetailScreen, TaskListScreen, TaskSubmissionsScreen } from './class-tasks';
-import { EventsScreen, MentoringScreen, PledgesScreen, SuggestionsScreen, SurveysScreen } from './participation';
-import { AdminHomeScreen, AdminMentoringScreen, LogsScreen, MembersScreen, ReviewPostsScreen } from './admin';
 import { AccessDenied, EmptyState, PageHeading } from './shared';
 import { level } from '@/lib/domain';
 import { Button } from './ui/button';
-import { ModerationSettings } from './moderation-settings';
 import { CredentialSetup } from './credential-setup';
-import {CouncilChannel} from './council-channel';
-import { IssueAccountScreen } from './issue-account';
-import { GuideScreen } from './guide';
+import {DataLoadError} from './connection-status';
+
+const loading=()=> <div className="loading" role="status"><span className="loading-dot"/>메뉴를 불러오는 중입니다…</div>;
+const TaskCreateScreen=dynamic(()=>import('./class-tasks').then(m=>m.TaskCreateScreen),{loading});
+const TaskDetailScreen=dynamic(()=>import('./class-tasks').then(m=>m.TaskDetailScreen),{loading});
+const TaskListScreen=dynamic(()=>import('./class-tasks').then(m=>m.TaskListScreen),{loading});
+const TaskSubmissionsScreen=dynamic(()=>import('./class-tasks').then(m=>m.TaskSubmissionsScreen),{loading});
+const EventsScreen=dynamic(()=>import('./events-board').then(m=>m.EventsScreen),{loading});
+const MentoringScreen=dynamic(()=>import('./mentoring').then(m=>m.MentoringScreen),{loading});
+const PledgesScreen=dynamic(()=>import('./pledges-screen').then(m=>m.PledgesScreen),{loading});
+const SuggestionsScreen=dynamic(()=>import('./suggestions-board').then(m=>m.SuggestionsScreen),{loading});
+const SurveysScreen=dynamic(()=>import('./participation').then(m=>m.SurveysScreen),{loading});
+const AdminHomeScreen=dynamic(()=>import('./admin').then(m=>m.AdminHomeScreen),{loading});
+const AdminMentoringScreen=dynamic(()=>import('./mentoring').then(m=>m.AdminMentoringScreen),{loading});
+const LogsScreen=dynamic(()=>import('./admin').then(m=>m.LogsScreen),{loading});
+const MembersScreen=dynamic(()=>import('./admin').then(m=>m.MembersScreen),{loading});
+const ReviewPostsScreen=dynamic(()=>import('./admin').then(m=>m.ReviewPostsScreen),{loading});
+const ModerationSettings=dynamic(()=>import('./moderation-settings').then(m=>m.ModerationSettings),{loading});
+const CouncilChannel=dynamic(()=>import('./council-channel').then(m=>m.CouncilChannel),{loading});
+const IssueAccountScreen=dynamic(()=>import('./issue-account').then(m=>m.IssueAccountScreen),{loading});
+const GuideScreen=dynamic(()=>import('./guide').then(m=>m.GuideScreen),{loading});
 
 export function RouteScreen({ segments }: { segments: string[] }) {
-  const { ready, member } = useDemo();
+  const { ready, member,syncError } = useDemo();
   const route = segments.join('/'); const [area, id, action, detail] = segments;
   if (!ready) return <div className="loading" role="status"><span className="loading-dot"/>소통해용을 불러오는 중입니다…</div>;
+  if(syncError)return <DataLoadError/>;
   if (member?.status==='ACTIVE' && member.mustChangeCredentials) return <CredentialSetup/>;
   if (!level(member)) return <LoginScreen/>;
   if (route === 'guide' || route === 'about') return <GuideScreen/>;

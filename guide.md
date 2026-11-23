@@ -40,6 +40,7 @@
 
 - 게시글·댓글과 공개 건의·답변의 승인·반려, 반려 게시글 재검토 후 공개, 댓글 신고 검토
 - 학생회 개인 채널에서 회원에게 답변, 건의함 공식 답변과 본인 답변 수정
+- 건의 처리 상태·담당자·예정일 변경, 처리 사유·결과 안내 기록
 - 본인에게 배정된 학급 업무의 답변·이력 확인
 - 동성 1:1 멘토·멘티 매칭 관리
 
@@ -97,6 +98,26 @@
 L3 이상 검토 운영진은 게시글 검토 → 반려 목록에서 내용을 다시 확인하고 재검토 후 공개를 선택할 수 있습니다. 본인이 작성한 글은 반려된 경우에도 직접 승인할 수 없고 다른 운영진이 판단해야 합니다.
 
 재공개해도 이전 반려·승인 기록은 서버에 남습니다. 공개·숨김 상태의 글을 다시 처리하는 기존 권한은 L4 이상으로 유지합니다. 처리자가 탈퇴해 정보가 삭제되면 실제 이름 대신 탈퇴한 운영진으로 표시합니다.
+
+## 소식 찾기와 입력 내용 보호
+
+홈에서 주요 공지·학생회 소식·최근 글·진행 중인 공약과 신청 가능한 행사를 확인합니다. 첫 바로가기는 일반 학생의 내 활동, 학급 대표의 우리 반 업무, 운영진의 관리 업무로 달라집니다.
+
+게시판은 제목·내용·말머리·작성자로 검색하고 게시판·말머리·최신순·조회순을 선택합니다. 검색어·필터·페이지는 주소에 남아 뒤로 가기나 새로고침 후에도 유지됩니다. 검색 초기화로 조건을 지울 수 있습니다.
+
+글쓰기·건의 작성 중 새로고침하거나 창을 닫으면 브라우저가 미저장 내용 확인을 요청할 수 있습니다. 기기에 본문을 자동 보관하지는 않습니다. 다른 메뉴로 이동하기 전에는 임시 저장 또는 등록을 완료하세요. 저장 실패 시에는 입력 내용을 확인하고 다시 시도해 주세요.
+
+자료를 불러오지 못하면 다시 불러오기를 선택합니다. 인터넷 연결 끊김 안내가 나오면 연결된 뒤 다시 저장하세요. 모바일 메뉴는 Esc로 닫을 수 있습니다.
+
+## 건의 처리 진행 상황과 공약 이력
+
+건의는 접수 완료 → 검토 중 → 처리 중(담당자 전달) → 처리 완료로 진행하며 반려 또는 처리 불가 사유도 기록합니다. 학생회 L3·L4가 상태·담당자·예정일과 5~1000자 처리 사유를 변경합니다. 필요하면 반려 건의를 다시 검토할 수 있습니다.
+
+처리 예정일·담당자·처리 사유·이력은 작성자와 운영진에게만 표시합니다. 다른 학생은 승인된 공개 질문의 처리 상태만 확인할 수 있습니다. 비공개 건의는 공개 목록에 표시하지 않습니다. 처리 상태 변경은 공개 승인이나 공식 답변을 대신하지 않습니다.
+
+건의함에서 검색·처리 상태로 목록을 좁힐 수 있으며 운영진은 미답변 건의만 볼 수 있습니다. 공약은 추진 예정·추진 중·보류·완료로 필터링하고 실제 변경 이력을 확인할 수 있습니다. 과거에 기록하지 않은 이력을 새로 만들어 표시하지 않습니다.
+
+공약의 진행률은 담당자가 입력한 수치이며 자동 추정하지 않습니다. 세부 추진 내용에서 완료한 작업과 남은 과제를 함께 확인하세요. 보류 시에는 담당자가 세부 내용에 사유를 적습니다.
 
 ## 조회수와 인기글
 
@@ -238,7 +259,7 @@ NEXT_PUBLIC_ENABLE_DEMO=false
 
 ### 새 Supabase 환경을 준비할 때
 
-기존 운영 프로젝트를 초기화하지 않습니다. 현재 마이그레이션은 `supabase/migrations/`의 001~025입니다. 새 환경에서는 순서대로 적용하고 기존 환경에서는 아직 적용하지 않은 파일만 추가합니다. 적용한 SQL을 수정하거나 다시 실행하지 않습니다.
+기존 운영 프로젝트를 초기화하지 않습니다. 소스의 마이그레이션은 `supabase/migrations/`의 001~026입니다. 2026-11-23 개선 작업에서 추가한 026은 로컬 검증 후 사용자 승인을 받아 운영에 적용했습니다. 새 환경에서는 순서대로 적용하고 기존 환경에서는 아직 적용하지 않은 파일만 추가합니다. 적용한 SQL을 수정하거나 다시 실행하지 않습니다.
 
 ```powershell
 npx.cmd supabase login
@@ -291,7 +312,7 @@ npm.cmd run audit:release -- --out
 
 `npm.cmd start`는 빌드된 정적 파일을 확인하는 서버입니다. 공개 설정 없는 프로덕션 빌드에서 로그인 서버 미설정 안내가 나오는 것은 정상입니다. Playwright는 별도의 3100번 포트와 `.local/next-e2e` 캐시를 사용합니다.
 
-소스 감사는 Git 추적 파일을 검사하므로 새 파일을 스테이징한 후 다시 실행합니다. 패턴 검사는 모든 개인정보를 찾아내지는 못하므로 파일 목록과 내용을 함께 확인합니다. 키가 이미 커밋됐다면 `.gitignore`만으로 숨길 수 없으며 키 폐기·재발급과 이력·산출물 정리가 필요합니다.
+소스 감사는 Git 추적 파일과 아직 추적하지 않는 공유 대상 파일을 함께 검사합니다. 패턴 검사는 모든 개인정보를 찾아내지는 못하므로 파일 목록과 내용을 함께 확인합니다. 키가 이미 커밋됐다면 `.gitignore`만으로 숨길 수 없으며 키 폐기·재발급과 이력·산출물 정리가 필요합니다.
 
 실제 Supabase 권한 변경 시에는 비로그인·미설정·정지 계정 차단, 타인 비공개 데이터 차단, 자기 승인 금지, 학급·마감 제한, 임시 정보 삭제, 멘토링 상호 동의를 실제 인증으로 확인합니다. 로컬 DB 대역 테스트만으로 원격 인증 검증을 대신하지 않습니다. 검증용 자료만 정리하며 운영 회원의 글·업무를 지우지 않습니다.
 
@@ -322,3 +343,115 @@ Korcen MIT 자료에서 선별한 욕설 규칙을 사용합니다. [외부 자�
 - `LICENSE`: © 2026 leo-0229. All rights reserved. 별도 허락 없는 자유 이용을 허용하는 오픈소스 라이선스는 부여하지 않습니다. 외부 라이브러리는 각 라이선스를 따릅니다.
 
 예전 `docs/`의 기획·초기 배포 문서 6개는 내용이 겹치고 현재 정책과 달라 통합 후 삭제했습니다. 과거 내용은 Git 이력에서 확인합니다.
+
+### 2026-11-23 개선: 조사와 적용 계획
+
+실제 구조는 `src/app`의 정적 진입점, `navigation.tsx`의 해시 라우팅, `RouteScreen`의 권한별 화면, `DemoProvider`의 인증·데이터·변경 처리, 기능별 컴포넌트로 나뉩니다. 게시글·댓글·하트·신고·공개/비공개 건의·학생회 채널·멘토링·학급 공동 제출·공약·방문 통계가 구현되어 있습니다. 운영 인증·RPC·검사 서버는 Supabase, 정적 파일은 GitHub Pages가 담당합니다. 로컬 체험 자료만 브라우저에 보관합니다.
+
+코드에서 확인한 문제와 실제 변경:
+
+| 우선순위 | 확인한 구조와 영향 | 수정 파일·검증 방법 |
+| --- | --- | --- |
+| P0 | 인증 자료 요청이 겹치거나 로그아웃해도 이전 응답을 버리는 처리가 없음. 초기 실패는 짧은 알림만 표시 | `demo-provider.tsx`: 요청 버전과 즉시 무효화·실패 시 상태 비우기. `tests/auth/session.spec.ts`에서 지연 응답·로그아웃·재시도 검사 |
+| P1 | 메인이 전체 게시판과 같고 역할별 시작 메뉴가 없음 | `home-overview.tsx`, 해당 CSS: 공지·소식·최근 글·공약·행사와 역할별 바로가기. 320px 화면 검사 |
+| P1 | 검색·정렬·말머리·페이지가 컴포넌트 상태여서 이동·새로고침 시 복원되지 않음. 모든 페이지 버튼을 생성 | `board-query.ts`, `community.tsx`: URL 상태, 게시판 필터, 검색 초기화, 최대 5개 번호 창. 단위·브라우저 검사 |
+| P1 | 모바일 메뉴에 포커스 가두기·복귀·Esc 처리가 없고 본문 바로가기가 해시 라우트와 충돌 | `use-mobile-menu.ts`, `app-shell.tsx`: 대화상자·배경 inert·스크롤 잠금·포커스 복귀·해시 변경 없는 본문 이동 |
+| P1 | 회원 등급·이용 상태 변경이 선택 즉시 실행 | `admin.tsx`: 대상·변경 값 확인과 취소, 실행 중 중복 처리 방지 |
+| P1 | 건의 목록 검색·미답변 필터와 별도 처리 상태 편집 화면 부재 | `suggestions-board.tsx`, `suggestion-workflow.tsx`: 검색·필터·처리 상태·담당자·예정일·사유·이력, 서버 권한 및 수정 충돌 검사 |
+| P1 | 일부 화면을 열지 않아도 전체 관리 기능을 처음에 가져옴 | `route-screen.tsx`: 기능 화면을 동적 import하고 로딩 상태 제공. 정적 빌드 검사 |
+| P1 | 공약의 완료 목록 필터·변경 이력 표시 부재 | `pledges-screen.tsx`, `pledge-history.tsx`: 상태 필터·실제 변경 이력·보류 사유, 진행률은 수동 입력임을 명시 |
+| P1 | 인증 입력의 기본 패턴 오류가 구체적인 규칙을 안내하지 않음 | `credential-setup.tsx`: 규칙 설명·구체적인 형식 오류·입력 정규화. 기존 최초 설정 브라우저 검사 |
+| P2 | 여러 파일에 사용하지 않는 import와 변수 존재 | 해당 컴포넌트 정리, `typecheck`에 미사용 검사 추가 |
+
+발생한 사고로 확인하지 않은 항목은 별도로 취급합니다. 운영 세션 갱신·계정 재발급과 실제 원격 RLS, 느린 실제 모바일 통신, iOS Safari·Android 실기기, 원격 Pages 캐시·직접 링크는 운영 승인 후 검증이 필요합니다. 이 작업에서 사용자 계정·게시글 유출 사고가 있었다고 단정하지 않습니다.
+
+### 026 적용과 되돌리기
+
+`supabase/migrations/202611230026_suggestion_workflow.sql`은 건의 담당 정보·처리 이력과 공약 변경 이력을 비공개 테이블에 추가하고 범위를 제한한 RPC로 읽습니다. 기존 전체 조회 함수와 RLS를 교체하지 않으며 기존 회원·글·댓글·업무를 삭제하거나 초기화하지 않습니다. 이력은 적용 이후 실제 변경부터 기록하고 과거 처리 기록을 추정해 채우지 않습니다. 공약 이력은 펼칠 때만 최근 20개, 건의 이력은 최근 30개를 가져옵니다.
+
+건의 처리 RPC는 현재 활성·최초 설정 완료된 L3·L4인지 서버에서 검사합니다. 담당자 역시 활성 학생회 계정만 허용합니다. 변경 시 대상 행을 잠그고 이전 `updated_at`을 비교하며 사유·감사 기록·작성자 알림을 함께 저장합니다. L5는 이력 확인이 가능하지만 학생회 역할을 대신해 처리 상태를 변경하지 않습니다. 공개 질문의 일반 독자는 상태만 받고 담당자·기한·이력을 받지 않습니다. 공약 이력은 기존 공약과 같이 활성 회원에게 제공하며 직접 테이블 접근은 허용하지 않습니다.
+
+권장 적용 순서: 학교 승인과 운영자 확인 → 별도 테스트 Supabase에서 026 적용·인증 역할별 검증 → 운영 백업 상태 확인 → 운영에 미적용 026만 적용 → 새 정적 빌드 배포 → 로그인·건의 처리·공약 이력 확인. 초안 단계에서는 원격 DB 적용·Git push·Pages 배포를 수행하지 않았으며 이후 사용자의 명시적 승인을 받아 026 적용과 connected 모드 배포를 진행합니다. GitHub 브라우저용 변수는 기존 공개 URL·publishable 키를 사용하며 새 비밀키나 유료 서비스가 필요하지 않습니다. 이번 원격 적용 전에는 미적용 파일이 026 하나임과 기존 스키마 호환성을 확인했습니다. 운영 자동 백업 상태와 실제 회원 인증 검사는 확인하지 않았으며 로컬 권한 검사·원격 ACL 점검과 구분합니다.
+
+문제가 있으면 먼저 프런트엔드를 이전 배포로 되돌립니다. 026은 추가형이므로 그 상태로 유지해도 기존 화면을 사용할 수 있습니다. 서버 기능 중단이 필요하면 승인된 SQL 작업에서 새 RPC의 authenticated 실행 권한을 회수하고 `track_suggestion_transition`, `track_pledge_change` 트리거를 제거합니다. 새 이력 테이블은 삭제하지 않고 보존합니다. 이후 수정 마이그레이션으로 함수를 복구합니다. 적용한 026 파일을 수정·재실행하거나 기록을 지우는 롤백은 하지 않습니다.
+
+아래는 기능 중단이 필요할 때만 별도 승인을 받아 실행하는 SQL 예시입니다. 이번 작업에서 실행하지 않았습니다.
+
+```sql
+begin;
+revoke execute on function public.suggestion_workflow(uuid),
+ public.update_suggestion_workflow(uuid,text,text,uuid,date,timestamptz),
+ public.pledge_history(uuid) from authenticated;
+drop trigger if exists track_suggestion_transition on public.suggestions;
+drop trigger if exists track_pledge_change on public.pledges;
+commit;
+```
+
+### 검증과 다음 개선
+
+`npm run test:e2e:auth`는 `auth-test.invalid`의 모든 요청을 가로채는 가짜 인증 서버를 사용합니다. 실제 Supabase·회원·비밀번호를 사용하거나 테스트 계정을 발급하지 않습니다. SQL 권한 검사는 PGlite에서 수행합니다. 이는 운영 Supabase Auth·게이트웨이·실제 토큰 검증을 대신하지 않습니다. 새 `.github/workflows/checks.yml`은 단위·브라우저·빌드·공개 산출물 검사를 수행하며 배포 작업과 운영 키를 포함하지 않습니다.
+
+기본 `playwright.config.ts`도 공개 Supabase 연결 변수와 basePath를 테스트 서버 환경에서 명시적으로 비웁니다. 로컬 설정에 운영 연결 정보가 있더라도 브라우저 회귀 검사는 localhost 체험 자료로만 실행하도록 분리했습니다.
+
+게시글·건의 작성 중 미저장 상태에는 새로고침·창 닫기 확인을 등록하지만 브라우저가 안내를 생략할 수 있습니다. 다른 메뉴로 이동하는 것까지 막거나 본문을 기기에 자동 저장하는 기능은 추가하지 않았습니다. 입력 실패 후 내용 유지와 수동 임시 저장을 우선 사용합니다. 중복 클릭 방지는 새 저장 UI에서 처리하지만 네트워크 재전송까지 동일 요청으로 식별하는 서버 멱등성 보장은 별도 과제입니다.
+
+후속 우선순위는 운영 인증 검증, 전체 스냅샷 대신 서버 목록 페이지네이션 도입, 요청 빈도·재전송 제어, 공개 정책에 맞는 유사 건의 안내입니다. 공개되지 않은 질문을 유사 건의로 노출하지 않습니다. 파일 업로드·다크모드·AI 서비스는 이번에 추가하지 않았습니다. 진행률을 자동 생성하지 않으며 파괴적인 일괄 처리·삭제 복구도 제공한다고 안내하지 않습니다.
+
+2026-11-23 로컬 검증 결과:
+
+- 단위·PGlite DB 검사: 18개 파일, 487개 통과.
+- 기존·사용성 Chromium 검사: 52개 시나리오 검증. 마지막 전체 실행에서 49개 통과 후, 새 이력 버튼·입력 선택자가 모호했던 3개를 구체화해 재실행했고 3개 모두 통과했습니다. 테스트 실패를 숨기거나 기능을 제거하지 않았습니다.
+- 가짜 인증 서버 Chromium 검사: 5개 통과. 무세션 로그인 화면·데이터 실패 재시도·로그아웃 뒤 늦은 응답 무시·거절된 세션 차단·댓글 API 실패 입력 보존을 확인했습니다.
+- 미사용 항목을 포함한 TypeScript 검사, 문서 일치 검사, 소스 공개 검사, `/sotonghaeyong` 정적 빌드 및 산출물 검사 통과. 산출물 44개 파일을 검사했습니다.
+- 빌드 산출물을 로컬 HTTP 서버에서 열어 해시 경로 5종의 접근·새로고침, 320px 너비, 자산 오류·브라우저 오류 없음, 비로그인 차단을 확인했습니다. 운영 서버에 접속한 인증 검사는 아닙니다.
+- 처음 HTML에서 참조하는 JavaScript의 gzip 크기 합계는 기존 로컬 산출물 401,149바이트 → 이번 빌드 384,818바이트로 약 4.1% 감소했습니다. 원본 합계는 1,416,148 → 1,341,033바이트입니다. 같은 gzip 계산법으로 비교했지만 이전 빌드의 생성 조건을 통제한 실험은 아니며 실제 네트워크 전송량·휴대폰 체감 속도·Lighthouse 점수로 해석하지 않습니다. 새 동적 화면 청크는 사용할 때 추가로 내려받습니다.
+
+로컬 미리보기: `cd D:\mpms` 후 `npm.cmd start`, 브라우저에서 `http://127.0.0.1:3000/sotonghaeyong/`을 엽니다. 이번 산출물은 운영 연결 정보를 넣지 않은 잠긴 화면입니다. 가상 역할별 체험은 `npm.cmd run dev`의 로컬 주소에서 확인합니다. 실제 회원 로그인과 새 DB 기능 확인은 승인 후 운영 설정·026 적용이 필요합니다.
+
+이번 개선에서 수정·추가한 파일 43개입니다. 자동 생성되는 `next-env.d.ts`는 원래 상태로 돌렸습니다.
+
+```text
+.github/workflows/checks.yml
+guide.md
+package.json
+playwright.auth.config.ts
+playwright.config.ts
+scripts/release-audit.mjs
+src/app/layout.tsx
+src/app/usability.css
+src/components/account.tsx
+src/components/admin.tsx
+src/components/app-shell.tsx
+src/components/class-tasks.tsx
+src/components/community.tsx
+src/components/connection-status.tsx
+src/components/credential-setup.tsx
+src/components/demo-provider.tsx
+src/components/home-overview.module.css
+src/components/home-overview.tsx
+src/components/participation.tsx
+src/components/pledge-history.tsx
+src/components/pledges-screen.tsx
+src/components/post-thread.tsx
+src/components/route-screen.tsx
+src/components/screen-boundary.tsx
+src/components/shared.tsx
+src/components/static-app.tsx
+src/components/suggestion-workflow.module.css
+src/components/suggestion-workflow.tsx
+src/components/suggestions-board.tsx
+src/components/use-mobile-menu.ts
+src/components/use-pending-action.ts
+src/components/use-unsaved-changes.ts
+src/lib/board-query.ts
+src/lib/domain.ts
+src/lib/guide-content.json
+src/lib/suggestion-workflow.ts
+supabase/migrations/202611230026_suggestion_workflow.sql
+tests/auth/session.spec.ts
+tests/database/community-expansion.test.ts
+tests/e2e/policy-v2.spec.ts
+tests/e2e/usability.spec.ts
+tests/unit/board-query.test.ts
+tsconfig.json
+```

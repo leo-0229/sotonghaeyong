@@ -8,11 +8,12 @@ import { cloudMutation } from '@/lib/backend';
 import { localModeration,publicationStatus } from '@/lib/moderation';
 import {BOARD_PREFIXES} from '../../supabase/functions/_shared/boards';
 import {authEmail,normalizeLoginId,parseStudentId,temporaryCredentials,validateCredentials} from '@/lib/accounts';
-import { ROLE_INFO, canManageTask, canReadSuggestion, canReview, isTeacher, isCouncil, level, postSchema, submitForClass, suggestionSchema, type AppState, type Member, type Role, type SubmissionStatus } from '@/lib/domain';
+import { canManageTask, canReview, isTeacher, isCouncil, level, postSchema, submitForClass, suggestionSchema, type AppState, type Member, type Role } from '@/lib/domain';
 
 const STORAGE_KEY = 'mpms-draft-v2';
 type Update = (state: AppState, member: Member) => AppState;
 interface DemoContextValue {
+  syncError: string;
   reviewRevision:number;
   state: AppState; member: Member | undefined; ready: boolean; toast: string;
   mode: 'demo' | 'supabase' | 'unconfigured'; busy: boolean;
@@ -48,6 +49,8 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(createSeed);
   const ref = useRef(state);
   const [ready, setReady] = useState(false);
+  const [syncError,setSyncError]=useState('');
+  const refreshVersion=useRef(0);
   const [toast, setToast] = useState('');
   const [mode,setMode]=useState<'demo'|'supabase'|'unconfigured'>('unconfigured');
   const [busy,setBusy]=useState(false);
@@ -60,24 +63,46 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   }, []);
   const refresh=useCallback(async()=>{
     if(!supabase) return;
-    const {data:{user}}=await supabase.auth.getUser();
-    if(!user){ const empty=emptyState(); ref.current=empty;setState(empty);return; }
-    const [snapshot,identity]=await Promise.all([supabase.rpc('community_snapshot'),supabase.rpc('own_account')]);
-    if(snapshot.error||identity.error) throw new Error('서버 데이터를 불러오지 못했습니다. 최신 SQL 마이그레이션 적용 여부를 확인해 주세요.');
-    const data=snapshot.data as AppState;data.members=data.members.map(m=>m.id===user.id?{...m,...identity.data}:m);
-    const own=data.members.find(m=>m.id===user.id);
-    if(level(own)>=4){
-      const {data:directory,error}=await supabase.rpc('account_directory');if(error)throw new Error('회원 계정 정보를 불러오지 못했습니다.');
-      data.members=data.members.map(m=>({...m,...directory?.find((entry:{id:string})=>entry.id===m.id)}));
+    const version=++refreshVersion.current;
+    try{
+      const {data:{user},error:authError}=await supabase.auth.getUser();
+      if(version!==refreshVersion.current)return;
+      if(authError&&authError.name!=='AuthSessionMissingError')throw new Error('로그인 상태를 확인하지 못했습니다. 인터넷 연결을 확인하고 다시 시도해 주세요.');
+      if(!user){const empty=emptyState();ref.current=empty;setState(empty);setSyncError('');return;}
+      const [snapshot,identity]=await Promise.all([supabase.rpc('community_snapshot'),supabase.rpc('own_account')]);
+      if(version!==refreshVersion.current)return;
+      if(snapshot.error||identity.error)throw new Error('학교 자료를 불러오지 못했습니다. 연결을 확인하고 다시 시도해 주세요. 계속되면 담당자에게 알려 주세요.');
+      const data=snapshot.data as AppState;data.members=data.members.map(m=>m.id===user.id?{...m,...identity.data}:m);
+      const own=data.members.find(m=>m.id===user.id);
+      if(level(own)>=4){
+        const {data:directory,error}=await supabase.rpc('account_directory');
+        if(version!==refreshVersion.current)return;
+        if(error)throw new Error('회원 계정 정보를 불러오지 못했습니다. 다시 시도해 주세요.');
+        data.members=data.members.map(m=>({...m,...directory?.find((entry:{id:string})=>entry.id===m.id)}));
+      }
+      ref.current=data;setState(data);setSyncError('');
+    }catch(error){
+      if(version!==refreshVersion.current)return;
+      const empty=emptyState();ref.current=empty;setState(empty);
+      const message=error instanceof Error?error.message:'자료를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      setSyncError(message);throw new Error(message);
     }
-    ref.current=data;setState(data);
   },[]);
   useEffect(() => {
     if(supabase){
       setMode('supabase');
       void refresh().catch(e=>notify(e.message)).finally(()=>setReady(true));
-      const {data:{subscription}}=supabase.auth.onAuthStateChange(()=>{ setTimeout(()=>void refresh().catch(e=>notify(e.message)),0); });
-      return ()=>subscription.unsubscribe();
+      let refreshTimer:ReturnType<typeof setTimeout>;
+      const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+        // Invalidate in-flight reads immediately, before a deferred auth callback runs.
+        ++refreshVersion.current;
+        clearTimeout(refreshTimer);
+        if(event==='SIGNED_OUT'||ref.current.currentMemberId!==session?.user.id){
+          const empty=emptyState();ref.current=empty;setState(empty);setSyncError('');
+        }
+        if(event!=='SIGNED_OUT')refreshTimer=setTimeout(()=>void refresh().catch(e=>notify(e.message)),0);
+      });
+      return ()=>{++refreshVersion.current;clearTimeout(refreshTimer);subscription.unsubscribe();clearTimeout(timer.current);};
     }
     if(!demoAllowed()){const empty=emptyState();ref.current=empty;setState(empty);setReady(true);return;}
     setMode('demo');
@@ -173,7 +198,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     notify('아이디와 비밀번호를 변경했습니다.');
   }
   const switchMember = async (id: string | null) => {
-    if(supabase){if(id)throw new Error('운영 환경에서는 역할을 임의로 바꿀 수 없습니다.');const {error}=await supabase.auth.signOut();if(error)throw error;const empty=emptyState();ref.current=empty;setState(empty);return;}
+    if(supabase){if(id)throw new Error('운영 환경에서는 역할을 임의로 바꿀 수 없습니다.');const {error}=await supabase.auth.signOut();if(error)throw error;++refreshVersion.current;const empty=emptyState();ref.current=empty;setState(empty);setSyncError('');return;}
     if(!demoAllowed())throw new Error('운영 로그인 서버가 설정되지 않았습니다.');
     persist({ ...ref.current, currentMemberId: id,posts:ref.current.posts.map(p=>({...p,hearts:{count:p.demoHeartUsers?.length??0,liked:!!id&&!!p.demoHeartUsers?.includes(id)},comments:p.comments.map(c=>({...c,hearts:{count:c.demoHeartUsers?.length??0,liked:!!id&&!!c.demoHeartUsers?.includes(id)}}))})) }); notify(id ? '체험 계정을 전환했습니다.' : '로그아웃했습니다.');
   };
@@ -316,7 +341,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     const id = uid(); persist({ ...ref.current, members: [...ref.current.members, { id, name: name.trim(), classId, role: 'STUDENT' as Role, status: 'PENDING' }], currentMemberId: id });
     notify('체험 가입 신청을 저장했습니다. 담당 교사 계정에서 승인할 수 있어요.'); return id;
   }
-  return <DemoContext.Provider value={{ reviewRevision,state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,recordPostView,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
+  return <DemoContext.Provider value={{ syncError,reviewRevision,state, member, ready, toast, mode,busy,signIn,issueAccount,manageAccount,changeCredentials,notify, commit, switchMember, reset, createPost,recordPostView,createComment,editContent,toggleHeart,deleteContent,reportComment,reviewCommentReport,replySuggestion,reviewSuggestionContent,refreshData:refresh, reviewPost, saveSubmission, applyEvent, createSuggestion, register }}>{children}</DemoContext.Provider>;
 }
 export function useDemo() { const ctx = useContext(DemoContext); if (!ctx) throw new Error('DemoProvider가 필요합니다.'); return ctx; }
 export async function runAction(action: () => unknown | Promise<unknown>, notify: (text: string) => void) { try { await action(); } catch (e) { notify(e instanceof Error ? e.message : '처리하지 못했습니다. 다시 시도해 주세요.'); } }

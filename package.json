@@ -14,9 +14,10 @@
     "start": "node scripts/serve.mjs",
     "provision": "node --env-file=.env.admin.local scripts/provision-account.mjs",
     "audit:release": "node scripts/release-audit.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit --noUnusedLocals --noUnusedParameters",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:auth": "playwright test --config playwright.auth.config.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "7.0.3",

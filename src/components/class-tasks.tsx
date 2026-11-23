@@ -3,7 +3,7 @@ import {TaskPublicStatus} from './task-public-status';
 import Link from '@/components/navigation';
 import { useRouter } from '@/components/navigation';
 import { useState } from 'react';
-import { ArrowRight, CalendarClock, CheckCheck, ChevronRight, ClipboardList, Clock3, Download, FileCheck2, LockKeyhole, Plus, Save, Send, Users } from 'lucide-react';
+import { ArrowRight, ChevronRight, ClipboardList, Clock3, FileCheck2, LockKeyhole, Plus, Save, Send, Users } from 'lucide-react';
 import { useDemo, runAction } from './demo-provider';
 import { AccessDenied, EmptyState, PageHeading, StatusBadge } from './shared';
 import { Button } from './ui/button';

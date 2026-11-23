@@ -1,0 +1,11 @@
+.workflow{margin:22px 0;padding:20px;background:#f7f9fc;border:1px solid #dce4ef;border-radius:10px}
+.workflow h2{font-size:16px;margin-bottom:16px}
+.workflow details{margin:16px 0}.workflow summary{cursor:pointer;font-weight:600;padding:10px 0}
+.workflow form{margin-top:20px}.workflow p{overflow-wrap:anywhere}
+.stages{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));list-style:none;padding:0;gap:8px;margin:0 0 16px}
+.stages li{padding:10px 6px;border-bottom:3px solid #d6deeb;color:#526176;font-size:13px;text-align:center}
+.stages li[aria-current]{background:#20365e;color:white;border-color:#e2cf4d;border-radius:5px}
+.stages li[data-complete=true]{border-color:#20365e}
+.history{padding:0 0 0 20px}.history li{padding:12px 0;border-bottom:1px solid #dce4ef;overflow-wrap:anywhere}
+.history time{display:block;margin:4px 0}.history p{white-space:pre-wrap}
+@media(max-width:420px){.workflow{padding:14px}.stages{grid-template-columns:repeat(2,minmax(0,1fr))}}

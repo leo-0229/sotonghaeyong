@@ -39,7 +39,7 @@ async function main(){
  const output=process.argv.includes('--out');let files;
  if(output){files=await walk('out');}
  else{
-  try{files=execFileSync('git',['ls-files','--cached','-z'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).split('\0').filter(Boolean);}
+  try{files=[...new Set(execFileSync('git',['ls-files','--cached','--others','--exclude-standard','-z'],{encoding:'utf8',stdio:['ignore','pipe','ignore']}).split('\0').filter(Boolean))];}
   catch{files=await walk('.',true);console.log('No Git index: checked shareable workspace files. Repeat after git add.');}
  }
  const failures=[];

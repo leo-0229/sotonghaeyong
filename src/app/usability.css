@@ -1,0 +1,48 @@
+/* Shared readability and small-screen safeguards; keep the crest palette. */
+:root{--muted:#526176}
+body{font-size:14px}
+input,select,textarea{min-width:0}
+button,a,input,textarea,select{touch-action:manipulation}
+.main-content,.panel,.page-heading>div{min-width:0}
+.article h1,.article-body,.document p,.info-box,.field-error,.comment p{overflow-wrap:anywhere}
+.page-heading p,.muted,.eyebrow,time{color:#526176}
+.field-error{color:#a82828}
+.badge{font-size:12px;color:#475569}
+.badge-orange{color:#875000}.badge-green{color:#24623a}.badge-red{color:#a42a2a}
+.connection-notice{padding:12px 20px;background:#fff9df;border-bottom:1px solid #e2cf4d;color:#624c06;font-size:14px;text-align:center}
+.global-search:focus-within{outline:2px solid #20365e;outline-offset:3px}
+.form-actions{flex-wrap:wrap}
+.pledge-history{padding-left:18px}.pledge-history li{padding:12px 0;border-bottom:1px solid #dce4ef;overflow-wrap:anywhere}.pledge-history p{white-space:pre-wrap}
+.pagination{flex-wrap:wrap;gap:5px}
+.pagination button{min-width:36px;min-height:40px}
+.board-search{flex-wrap:wrap}
+.board-search input{min-width:80px;flex:1}
+.sidebar summary:focus-visible{outline:2px solid #20365e;outline-offset:-2px}
+@media(max-width:760px){
+  .button,.button-sm,.button-icon{min-height:44px}
+  .button-icon{width:44px;height:44px}
+  .nav-link,.profile-links a,.profile-links button,.cafe-tabs a{min-height:44px;display:flex;align-items:center}
+  .sidebar{max-width:calc(100vw - 24px);overscroll-behavior:contain}
+  .sidebar-mobile-title{position:sticky;top:0;background:white;z-index:2}
+  .page-heading{flex-wrap:wrap;gap:14px}
+  .page-heading>.button{max-width:100%}
+  .login-header{gap:10px;flex-wrap:wrap;height:auto;min-height:76px}
+  .login-header>span:last-child{font-size:12px}
+  .topbar-inner{gap:8px}
+  .brand{min-width:0}
+  .topbar-actions{gap:8px}
+  .cafe-tabs{overflow-x:auto;white-space:nowrap;scrollbar-width:thin}
+  .cafe-tabs a{flex-shrink:0}
+  input,select,textarea,.form-panel input,.form-panel select,.form-panel textarea{font-size:16px}
+  .article{padding:18px 14px}
+  .article-actions,.comment-bottom{flex-wrap:wrap;gap:10px}
+  .article-meta time{white-space:normal}
+  .form-grid{grid-template-columns:minmax(0,1fr)}
+  .form-actions>.button{white-space:normal}
+  .board-search{padding:16px;gap:10px}
+  .table-scroll{overscroll-behavior-x:contain}
+  .toast{max-width:calc(100vw - 24px);white-space:normal;overflow-wrap:anywhere}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}

@@ -191,6 +191,68 @@ describe('comment reporting permissions and moderation',()=>{
  it('requires a meaningful report reason',async()=>{const comment=await reportable();await actor(ids.president);await expect(db.query("select public.report_comment($1,'짧음')",[comment])).rejects.toThrow('INVALID_REPORT_REASON');});
 });
 
+describe('suggestion handling workflow',()=>{
+ const read=async(id:string)=>(await db.query<{data:{status:string;version:string|null;handler?:string;history:{status:string;note:string|null}[]}}>('select public.suggestion_workflow($1) as data',[id])).rows[0].data;
+ const change=async(id:string,status:string,note='검토 결과와 다음 처리 계획입니다.',handler:string|null=null,version?:string|null)=>{
+  const expected=version===undefined?(await read(id)).version:version;
+  return db.query('select public.update_suggestion_workflow($1,$2,$3,$4,null,$5)',[id,status,note,handler,expected]);
+ };
+ it('records new receipts and lets council update status, handler, reason and history',async()=>{
+  const id=await suggestion();await actor(ids.officer);await change(id,'REVIEWING','학교 시설 담당 부서와 검토를 진행합니다.',ids.officer);
+  const detail=await read(id);expect(detail.status).toBe('REVIEWING');expect(detail.handler).toBe('체험officer');expect(detail.history.map(h=>h.status)).toEqual(['REVIEWING','RECEIVED']);expect(detail.history[0].note).toContain('검토');
+  await actor(ids.student);expect((await read(id)).history).toHaveLength(2);
+ });
+ it('keeps a rejection reason and supports reopening rejected work',async()=>{
+  const id=await suggestion();await actor(ids.executive);await change(id,'REJECTED','시설 공사 중이어서 현재 처리가 어렵습니다.');await change(id,'REVIEWING','공사 종료 후 다시 검토합니다.');
+  expect((await read(id)).history.map(h=>h.status)).toEqual(['REVIEWING','REJECTED','RECEIVED']);
+ });
+ it.each([['student',ids.student],['class representative',ids.president],['teacher',ids.teacher]])('blocks workflow changes by %s',async(_,user)=>{
+  const id=await suggestion();await actor(user);await expect(db.query("select public.update_suggestion_workflow($1,'RESOLVED','권한 없는 완료 처리 요청입니다.',null,null,null)",[id])).rejects.toThrow('COUNCIL_REQUIRED');
+ });
+ it('does not reveal another student private question or history',async()=>{
+  const id=await suggestion();await actor(ids.officer);await change(id,'REJECTED','작성자만 볼 수 있는 처리 사유입니다.');await actor(ids.president);expect(await read(id)).toBeNull();
+ });
+ it('returns public status without private handler, reason or timestamps to other students',async()=>{
+  const id=await suggestion('PUBLIC','APPROVED',true);await actor(ids.officer);await change(id,'ASSIGNED','비공개 처리 사유를 상세하게 기록합니다.',ids.officer);await actor(ids.president);
+  expect(await read(id)).toEqual({status:'ASSIGNED',version:null,history:[]});
+ });
+ it('requires a useful handling reason',async()=>{const id=await suggestion();await actor(ids.officer);await expect(change(id,'REJECTED','짧음')).rejects.toThrow('HANDLING_NOTE_REQUIRED');});
+ it('rejects a student as the handler',async()=>{const id=await suggestion();await actor(ids.officer);await expect(change(id,'REVIEWING','처리 담당자를 지정하는 테스트입니다.',ids.student)).rejects.toThrow('ACTIVE_COUNCIL_HANDLER_REQUIRED');});
+ it('rejects a stale edit after the question changes',async()=>{
+  const id=await suggestion();await actor(ids.officer);const version=(await read(id)).version;await change(id,'REVIEWING');await expect(change(id,'RESOLVED','오래된 화면에서 완료를 요청합니다.',null,version)).rejects.toThrow('EDIT_CONFLICT');
+ });
+ it('tracks automatic resolution when an approved council answer is stored',async()=>{
+  const id=await suggestion();await service();await db.query("select public.store_moderated_suggestion_reply($1,$2,'학생회가 확인한 공식 답변입니다.','APPROVED','{}',true)",[ids.officer,id]);
+  await actor(ids.student);expect((await read(id)).history[0].status).toBe('RESOLVED');
+ });
+ it('blocks anonymous workflow reads',async()=>{await db.exec('set local role anon');await expect(db.query('select public.suggestion_workflow($1)',[ids.suggestion])).rejects.toThrow(/permission denied/);});
+ it('blocks anonymous workflow changes',async()=>{await db.exec('set local role anon');await expect(db.query("select public.update_suggestion_workflow($1,'RESOLVED','권한 없는 처리 요청입니다.',null,null,null)",[ids.suggestion])).rejects.toThrow(/permission denied/);});
+ it('does not grant direct access to workflow handling details',async()=>{await actor(ids.student);await expect(db.query('select * from app_private.suggestion_handling')).rejects.toThrow(/permission denied/);});
+ it('does not grant direct access to workflow history',async()=>{await actor(ids.officer);await expect(db.query('select * from app_private.suggestion_transitions')).rejects.toThrow(/permission denied/);});
+ it('does not change question visibility, publication status or content',async()=>{
+  const id=await suggestion('PRIVATE','PENDING');await actor(ids.officer);await change(id,'RESOLVED');await db.exec('reset role');
+  expect((await db.query('select visibility,publication_status,content from public.suggestions where id=$1',[id])).rows[0]).toEqual({visibility:'PRIVATE',publication_status:'PENDING',content:'충분히 구체적인 학교 건의 본문입니다.'});
+ });
+});
+
+describe('pledge update history',()=>{
+ const pledgeId='80000000-0000-4000-8000-000000000080';
+ const save=async(description='첫 번째 추진 내용입니다.')=>mutate('save_pledge',{pledge:{id:pledgeId,title:'학교 공간 개선',description,department:'생활부',progress:20,status:'추진 중',details:'완료한 작업과 남은 과제를 공개합니다.'}});
+ it('records real changes but not timestamp-only or unchanged saves',async()=>{
+  await actor(ids.executive);await save();await save('새로운 추진 상황입니다.');await save('새로운 추진 상황입니다.');
+  const rows=(await db.query<{data:{change:{description:string;progress:number}}[]}>('select public.pledge_history($1) as data',[pledgeId])).rows[0].data;
+  expect(rows).toHaveLength(2);expect(rows[0].change.description).toBe('새로운 추진 상황입니다.');expect(rows[0].change.progress).toBe(20);
+ });
+ it('allows students to read updates for the public pledge',async()=>{
+  await actor(ids.executive);await save();await actor(ids.student);expect((await db.query<{data:unknown[]}>('select public.pledge_history($1) as data',[pledgeId])).rows[0].data).toHaveLength(1);
+ });
+ it('does not grant direct history access',async()=>{await actor(ids.executive);await expect(db.query('select * from app_private.pledge_changes')).rejects.toThrow(/permission denied/);});
+ it('blocks anonymous history reads',async()=>{await db.exec('set local role anon');await expect(db.query('select public.pledge_history($1)',[pledgeId])).rejects.toThrow(/permission denied/);});
+ it('blocks uninitialized users even when they have an executive role',async()=>{
+  await db.query('update public.profiles set credentials_pending=true where id=$1',[ids.executive]);await actor(ids.executive);await expect(db.query('select public.pledge_history($1)',[pledgeId])).rejects.toThrow('ACTIVE_LOGIN_REQUIRED');
+ });
+});
+
 describe('music board and runtime member-name directory',()=>{
  it('provides the ordinary music board without inserting demo posts',async()=>{await actor(ids.student);expect((await db.query("select title,official from public.boards where slug='music'")).rows).toEqual([{title:'노래 추천',official:false}]);});
  it('clears stale music prefixes at the storage boundary',async()=>{await service();const id=(await db.query<{id:string}>("select public.store_moderated_post($1,'music','노래 추천 검사','잔잔한 연주곡을 추천하는 게시글입니다.','APPROVED','{}',null,'오노추',true) as id",[ids.student])).rows[0].id;await db.exec('reset role');expect((await db.query('select prefix from public.posts where id=$1',[id])).rows).toEqual([{prefix:''}]);});

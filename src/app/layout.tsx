@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import './usability.css';
 import { DemoProvider } from '@/components/demo-provider';
 import { AppShell } from '@/components/app-shell';
 

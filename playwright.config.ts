@@ -3,5 +3,5 @@ export default defineConfig({
   testDir: './tests/e2e', fullyParallel: false, workers: 1, retries: 0,
   use: { baseURL: 'http://127.0.0.1:3100', trace: 'retain-on-failure', screenshot: 'only-on-failure', timezoneId: 'Asia/Seoul' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: { command: 'node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3100', url: 'http://127.0.0.1:3100/', env: { MPMS_DIST_DIR: '.local/next-e2e' }, reuseExistingServer: false, timeout: 60000 },
+  webServer: { command: 'node node_modules/next/dist/bin/next dev --hostname 127.0.0.1 --port 3100', url: 'http://127.0.0.1:3100/', env: { MPMS_DIST_DIR: '.local/next-e2e', NEXT_PUBLIC_BASE_PATH:'', NEXT_PUBLIC_SUPABASE_URL:'', NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:'', NEXT_PUBLIC_ENABLE_DEMO:'true' }, reuseExistingServer: false, timeout: 60000 },
 });

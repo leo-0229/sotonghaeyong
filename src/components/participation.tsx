@@ -1,16 +1,10 @@
 'use client';
-import Link from '@/components/navigation';
-import { useRouter } from '@/components/navigation';
 import { useState } from 'react';
-import { BookOpen, CalendarDays, CheckCircle2, ChevronRight, GraduationCap, HeartHandshake, LockKeyhole, MapPin, MessageSquareText, Plus, Send, ShieldCheck, Sparkles, Users, Vote } from 'lucide-react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import {CalendarDays,CheckCircle2,Users,Vote} from 'lucide-react';
 import { useDemo, runAction } from './demo-provider';
-import { AccessDenied, EmptyState, PageHeading, StatusBadge } from './shared';
+import {PageHeading} from './shared';
 import { Button } from './ui/button';
-import { canManage, canReadSuggestion, isTeacher, level, suggestionSchema } from '@/lib/domain';
-import { cn, dateTime, shortDate } from '@/lib/utils';
+import { cn,shortDate } from '@/lib/utils';
 
 export {EventsScreen} from './events-board';
 export {SuggestionsScreen} from './suggestions-board';

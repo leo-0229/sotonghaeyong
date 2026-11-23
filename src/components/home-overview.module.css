@@ -1,0 +1,17 @@
+.welcome{margin-bottom:24px;padding:26px;background:linear-gradient(120deg,#20365e,#304d7d);color:white;border-radius:14px;border-top:4px solid #e2cf4d}
+.welcome>div>span{color:#f2df79;font-size:12px;font-weight:700}
+.welcome h2{font-size:23px;margin:6px 0 10px;color:white}
+.welcome p{color:#e0e7f2;font-size:14px;line-height:1.7}
+.welcome nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:22px}
+.welcome a{padding:16px;background:white;color:#20365e;border-radius:9px;min-width:0;transition:background .15s}
+.welcome a:hover{background:#fff9df}
+.welcome a strong{display:flex;justify-content:space-between;gap:4px;font-size:14px;overflow-wrap:anywhere}
+.welcome a>span{display:block;margin-top:7px;font-size:12px;color:#526176}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
+.rows{padding:0 22px 15px}
+.rows a{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:15px 0;border-top:1px solid #e8edf3;font-size:13px}
+.rows strong{overflow-wrap:anywhere;color:#20365e}
+.rows p{font-size:13px;color:#526176;margin-top:6px;overflow-wrap:anywhere}
+.rows time,.rows a>span{color:#526176;font-size:12px;flex-shrink:0}
+@media(max-width:1050px){.welcome nav{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.grid{grid-template-columns:minmax(0,1fr);gap:0}.welcome{padding:20px 16px}.welcome h2{font-size:21px}.welcome nav{gap:10px}.welcome a{padding:13px}.welcome a strong{font-size:13px}.welcome a>span{font-size:12px}.rows{padding:0 16px 12px}.rows a{flex-wrap:wrap}}

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type {SiteVisitLedger} from './site-visits';
+import type {SuggestionWorkflowData} from './suggestion-workflow';
 export {BOARD_PREFIXES} from '../../supabase/functions/_shared/boards';
 z.config(z.locales.ko());
 
@@ -31,8 +32,8 @@ export interface ClassTask { id: string; title: string; description: string; dep
 export interface Submission { taskId: string; classId: string; status: SubmissionStatus; answers: Record<string, string>; version: number; submittedBy: string; updatedBy: string; updatedAt: string; feedback?: string; history: { by: string; at: string; action: string; answers: Record<string, string> }[] }
 export interface SchoolEvent { id: string; title: string; description: string; category: string; date: string; deadline: string; place: string; method: 'individual' | 'class' | 'none'; capacity: number; taskId?: string; color: string; applications: string[] }
 export interface SuggestionReply {updatedAt?:string;id:string;authorId:string;author:string;content:string;date:string;status:'PENDING'|'APPROVED'|'REJECTED'}
-export interface Suggestion {updatedAt?:string; id: string; authorId: string; title: string; category: string; content: string; status: '접수 완료' | '검토 중' | '담당자 전달' | '처리 완료' | '반려'; assignedTo?: string; date: string; reply?: string; visibility?:'PUBLIC'|'PRIVATE';publicationStatus?:'PENDING'|'APPROVED'|'REJECTED';moderationReasons?:string[];replies?:SuggestionReply[] }
-export interface Pledge { id: string; title: string; department: string; progress: number; description: string; details?: string; status?: '추진 예정' | '추진 중' | '완료' | '보류'; updated: string }
+export interface Suggestion {workflow?:SuggestionWorkflowData;updatedAt?:string; id: string; authorId: string; title: string; category: string; content: string; status: '접수 완료' | '검토 중' | '담당자 전달' | '처리 완료' | '반려'; assignedTo?: string; date: string; reply?: string; visibility?:'PUBLIC'|'PRIVATE';publicationStatus?:'PENDING'|'APPROVED'|'REJECTED';moderationReasons?:string[];replies?:SuggestionReply[] }
+export interface Pledge { history?:{id:string|number;date:string;actor:string;change:{title:string;description:string;details?:string;status:string;progress:number}}[];id: string; title: string; department: string; progress: number; description: string; details?: string; status?: '추진 예정' | '추진 중' | '완료' | '보류'; updated: string }
 export interface MentoringApplication { id: string; memberId: string; kind: '멘토' | '멘티'; time?: string; goal: string; status: string; partnerId?: string }
 export interface Survey { id: string; title: string; description: string; deadline: string; options: string[]; responses: Record<string, string> }
 export interface Notice { id: string; recipientId: string; title: string; href: string; read: boolean; date: string }
